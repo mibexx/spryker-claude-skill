@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<database xmlns="spryker:schema-01" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="zed" xsi:schemaLocation="spryker:schema-01 https://static.spryker.com/schema-01.xsd" namespace="Orm\Zed\ProductBadge\Persistence" package="src.Orm.Zed.ProductBadge.Persistence">
+
+    <table name="spy_product_badge" identifierQuoting="true">
+        <column name="id_product_badge" required="true" type="INTEGER" autoIncrement="true" primaryKey="true"/>
+        <column name="fk_product_abstract" required="true" type="INTEGER"/>
+        <column name="badge_key" required="true" type="VARCHAR" size="255"/>
+        <column name="label" required="true" type="VARCHAR" size="255"/>
+
+        <foreign-key name="spy_product_badge-fk_product_abstract" foreignTable="spy_product_abstract" phpName="ProductAbstract" refPhpName="ProductBadge">
+            <reference local="fk_product_abstract" foreign="id_product_abstract"/>
+        </foreign-key>
+
+        <unique name="spy_product_badge-unique-fk_product_abstract-badge_key">
+            <unique-column name="fk_product_abstract"/>
+            <unique-column name="badge_key"/>
+        </unique>
+
+        <id-method-parameter value="spy_product_badge_pk_seq"/>
+
+        <!-- Löst Entity.spy_product_badge.create|update|delete aus (-> Publisher) -->
+        <behavior name="event">
+            <parameter name="spy_product_badge_all" column="*"/>
+        </behavior>
+
+        <behavior name="timestampable"/>
+    </table>
+
+</database>

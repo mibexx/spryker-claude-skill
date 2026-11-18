@@ -1,0 +1,19 @@
+{% extends model('component') %}
+
+{% define config = {
+    name: 'product-badge',
+    tag: 'span',
+} %}
+
+{% define data = {
+    label: required,
+    badgeKey: '',
+} %}
+
+{% define attributes = {
+    'data-badge-key': data.badgeKey,
+} %}
+
+{% block body %}
+    {{ data.label }}
+{% endblock %}

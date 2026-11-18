@@ -1,0 +1,16 @@
+{% extends template('widget') %}
+
+{% define data = {
+    productBadges: _widget.productBadges,
+    isVisible: _widget.productBadges is not empty,
+} %}
+
+{% block body %}
+    <ul class="list list--inline">
+        {% for productBadge in data.productBadges %}
+            <li class="list__item" data-qa="product-badge-{{ productBadge.badgeKey }}">
+                <span class="label">{{ productBadge.label }}</span>
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}

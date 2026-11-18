@@ -1,0 +1,21 @@
+{% extends template('page-layout-main') %}
+
+{% define data = {
+    idProductAbstract: _view.idProductAbstract,
+    productBadges: _view.productBadges,
+    title: 'Product badges',
+} %}
+
+{% block content %}
+    <div class="container">
+        <h1>{{ data.title }} (#{{ data.idProductAbstract }})</h1>
+
+        <ul>
+            {% for productBadge in data.productBadges %}
+                <li data-qa="product-badge-{{ productBadge.badgeKey }}">
+                    <strong>{{ productBadge.badgeKey }}</strong>: {{ productBadge.label }}
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endblock %}

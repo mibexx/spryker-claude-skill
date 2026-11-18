@@ -1,0 +1,24 @@
+@use 'sass:meta';
+
+@mixin shop-ui-product-badge($name: '.product-badge') {
+    #{$name} {
+        @include helper-font-size(small);
+        display: inline-block;
+        padding: rem(2) rem(8);
+        background-color: helper-color-light($setting-color-main);
+        color: helper-color-dark($setting-color-main);
+
+        @if meta.mixin-exists(shop-ui-product-badge-base-hook) {
+            @include shop-ui-product-badge-base-hook;
+        }
+
+        @each $action, $setting-color-action in $setting-color-actions {
+            &--#{$action} {
+                background-color: helper-color-light($setting-color-action);
+                color: helper-color-dark($setting-color-action);
+            }
+        }
+
+        @content;
+    }
+}

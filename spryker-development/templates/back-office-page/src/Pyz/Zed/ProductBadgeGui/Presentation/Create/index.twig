@@ -1,0 +1,30 @@
+{% extends '@Gui/Layout/layout.twig' %}
+
+{% set widget_title = 'Create Product Badge' | trans %}
+
+{% block head_title widget_title %}
+{% block section_title widget_title %}
+
+{% block action %}
+    {{ backActionButton(url('/product-badge-gui/list'), 'Back to Product Badges' | trans) }}
+{% endblock %}
+
+{% block content %}
+
+    {% embed '@Gui/Partials/widget.twig' with { widget_title: 'Product badge details' | trans } %}
+
+        {% block widget_content %}
+
+            {{ form_start(form) }}
+                {{ form_row(form.fkProductAbstract) }}
+                {{ form_row(form.badgeKey) }}
+                {{ form_row(form.label) }}
+
+                <input type="submit" class="btn btn-primary safe-submit" value="{{ 'Save' | trans }}" />
+            {{ form_end(form) }}
+
+        {% endblock %}
+
+    {% endembed %}
+
+{% endblock %}

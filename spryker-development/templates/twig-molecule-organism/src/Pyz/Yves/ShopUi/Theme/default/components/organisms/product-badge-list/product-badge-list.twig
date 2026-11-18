@@ -1,0 +1,31 @@
+{% extends model('component') %}
+
+{% define config = {
+    name: 'product-badge-list',
+    tag: 'product-badge-list',
+} %}
+
+{% define data = {
+    badges: [],
+} %}
+
+{% define attributes = {
+    'max-visible': 3,
+    'hidden-class-name': 'product-badge-list__hidden',
+} %}
+
+{% block body %}
+    {% if data.badges is not empty %}
+        {% for badge in data.badges %}
+            {% include molecule('product-badge') with {
+                class: config.jsName ~ '__item',
+                data: {
+                    label: badge.label,
+                    badgeKey: badge.badgeKey,
+                },
+            } only %}
+        {% endfor %}
+
+        <button type="button" class="button button--hollow {{ config.jsName }}__toggler {{ attributes['hidden-class-name'] }}" aria-expanded="false" aria-label="{{ 'product_badge.show_more' | trans }}"></button>
+    {% endif %}
+{% endblock %}

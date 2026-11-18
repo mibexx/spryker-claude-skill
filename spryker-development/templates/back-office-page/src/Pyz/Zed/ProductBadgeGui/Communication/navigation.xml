@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<config>
+    <catalog>
+        <label>Catalog</label>
+        <title>Catalog</title>
+        <icon>fa-book</icon>
+        <uri>#</uri>
+        <pages>
+            <product-badge>
+                <label>Product Badges</label>
+                <title>Product Badges</title>
+                <bundle>product-badge-gui</bundle>
+                <controller>list</controller>
+                <action>index</action>
+                <pages>
+                    <product-badge-create>
+                        <label>Create Product Badge</label>
+                        <title>Create Product Badge</title>
+                        <bundle>product-badge-gui</bundle>
+                        <controller>create</controller>
+                        <action>index</action>
+                        <visible>0</visible>
+                    </product-badge-create>
+                </pages>
+            </product-badge>
+        </pages>
+    </catalog>
+</config>

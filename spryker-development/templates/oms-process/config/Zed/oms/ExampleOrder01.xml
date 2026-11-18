@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<statemachine
+    xmlns="spryker:oms-01"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="spryker:oms-01 http://static.spryker.com/oms-01.xsd">
+
+    <process name="ExampleOrder01" main="true">
+
+        <states>
+            <state name="new" display="oms.state.new">
+                <flag>cancellable</flag>
+            </state>
+            <state name="confirmed" reserved="true" display="oms.state.confirmed">
+                <flag>cancellable</flag>
+            </state>
+            <state name="paid" reserved="true" display="oms.state.paid"/>
+            <state name="shipped" display="oms.state.shipped"/>
+            <state name="closed" display="oms.state.closed"/>
+            <state name="cancelled" display="oms.state.canceled"/>
+        </states>
+
+        <transitions>
+            <!-- Event with onEnter="true": runs as soon as the item enters the source state, triggers the command. -->
+            <transition happy="true">
+                <source>new</source>
+                <target>confirmed</target>
+                <event>confirm</event>
+            </transition>
+
+            <!-- Transition WITHOUT event but with condition: evaluated by `oms:check-condition` (cronjob). -->
+            <transition happy="true" condition="ExampleOrder/HasPayment">
+                <source>confirmed</source>
+                <target>paid</target>
+            </transition>
+
+            <!-- Timeout event: fired by `oms:check-timeout` once the timeout has elapsed. -->
+            <transition>
+                <source>confirmed</source>
+                <target>cancelled</target>
+                <event>cancel unpaid</event>
+            </transition>
+
+            <transition happy="true">
+                <source>paid</source>
+                <target>shipped</target>
+                <event>ship</event>
+            </transition>
+
+            <transition happy="true">
+                <source>shipped</source>
+                <target>closed</target>
+                <event>close</event>
+            </transition>
+        </transitions>
+
+        <events>
+            <event name="confirm" onEnter="true" command="ExampleOrder/LogOrderConfirmed"/>
+            <event name="cancel unpaid" timeout="14 days" timeoutProcessor="OmsTimeout/Initiation"/>
+            <event name="ship" manual="true"/>
+            <event name="close" manual="true"/>
+        </events>
+
+    </process>
+
+</statemachine>

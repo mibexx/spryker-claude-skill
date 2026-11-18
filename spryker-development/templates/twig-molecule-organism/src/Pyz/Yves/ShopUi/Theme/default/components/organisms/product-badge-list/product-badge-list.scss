@@ -1,0 +1,21 @@
+@use 'sass:meta';
+
+@mixin shop-ui-product-badge-list($name: '.product-badge-list') {
+    #{$name} {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: rem(8);
+
+        @if meta.mixin-exists(shop-ui-product-badge-list-base-hook) {
+            @include shop-ui-product-badge-list-base-hook;
+        }
+
+        &__hidden {
+            // !important, weil die Item-/Button-Klassen ein eigenes display setzen (gleiche Spezifität)
+            display: none !important;
+        }
+
+        @content;
+    }
+}

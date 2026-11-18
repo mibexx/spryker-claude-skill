@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<transfers xmlns="spryker:transfer-01"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="spryker:transfer-01 http://static.spryker.com/transfer-01.xsd">
+
+    <!-- Payload der Storage-Tabelle spy_product_badge_storage.data bzw. des Redis-Werts product_badge:<id_product_abstract> -->
+    <transfer name="ProductBadgeStorage" strict="true">
+        <property name="idProductAbstract" type="int"/>
+        <property name="productBadges" type="ProductBadge[]" singular="productBadge"/>
+    </transfer>
+
+</transfers>

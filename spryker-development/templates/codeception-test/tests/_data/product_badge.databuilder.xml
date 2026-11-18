@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<transfers
+    xmlns="spryker:databuilder-01"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="spryker:databuilder-01 http://static.spryker.com/databuilder-01.xsd"
+>
+
+    <transfer name="ProductBadge" strict="true">
+        <property name="badgeKey" dataBuilderRule="randomElement(['new', 'sale', 'bestseller'])"/>
+        <property name="label" dataBuilderRule="word()"/>
+    </transfer>
+
+</transfers>

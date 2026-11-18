@@ -1,31 +1,31 @@
-# Template: oms-process (Prozess ExampleOrder01)
+# Template: oms-process (process ExampleOrder01)
 
-## Zweck
-Minimaler OMS-Prozess `ExampleOrder01` mit allen drei Mechanismen: Command (Event mit `onEnter`), Condition (Transition ohne Event, per `oms:check-condition`), Timeout (Event mit `timeout`, per `oms:check-timeout`), plus manuelle Events. Unabhängig vom Laufbeispiel ProductBadge. Hintergrund: [10-oms-state-machine](../../references/10-oms-state-machine.md).
+## Purpose
+Minimal OMS process `ExampleOrder01` with all three mechanisms: command (event with `onEnter`), condition (transition without event, via `oms:check-condition`), timeout (event with `timeout`, via `oms:check-timeout`), plus manual events. Independent of the running example ProductBadge. Background: [10-oms-state-machine](../../references/10-oms-state-machine.md).
 
-Prozessgraph: `new` --confirm(onEnter, Command)--> `confirmed` --(Condition `ExampleOrder/HasPayment`)--> `paid` --ship(manual)--> `shipped` --close(manual)--> `closed`; `confirmed` --cancel unpaid(Timeout 14 days)--> `cancelled`.
+Process graph: `new` --confirm(onEnter, command)--> `confirmed` --(condition `ExampleOrder/HasPayment`)--> `paid` --ship(manual)--> `shipped` --close(manual)--> `closed`; `confirmed` --cancel unpaid(timeout 14 days)--> `cancelled`.
 
-## Dateiliste (Zielpfad)
-| Datei | Rolle |
+## File list (target path)
+| File | Role |
 |---|---|
-| `config/Zed/oms/ExampleOrder01.xml` | Prozessdefinition (Namespace `spryker:oms-01`) |
-| `src/Pyz/Zed/OrderPaymentCheck/Communication/Plugin/Oms/Command/LogOrderConfirmedCommandPlugin.php` | Command (`CommandByOrderInterface`), XML-Key `ExampleOrder/LogOrderConfirmed` |
-| `src/Pyz/Zed/OrderPaymentCheck/Communication/Plugin/Oms/Condition/HasPaymentConditionPlugin.php` | Condition (`ConditionInterface`), XML-Key `ExampleOrder/HasPayment`, delegiert nur an die Facade |
+| `config/Zed/oms/ExampleOrder01.xml` | process definition (namespace `spryker:oms-01`) |
+| `src/Pyz/Zed/OrderPaymentCheck/Communication/Plugin/Oms/Command/LogOrderConfirmedCommandPlugin.php` | command (`CommandByOrderInterface`), XML key `ExampleOrder/LogOrderConfirmed` |
+| `src/Pyz/Zed/OrderPaymentCheck/Communication/Plugin/Oms/Condition/HasPaymentConditionPlugin.php` | condition (`ConditionInterface`), XML key `ExampleOrder/HasPayment`, only delegates to the Facade |
 | `src/Pyz/Zed/OrderPaymentCheck/Business/OrderPaymentCheckFacade(Interface).php`, `...BusinessFactory.php` | Facade `hasOrderPayment(int $idSalesOrder): bool` |
-| `src/Pyz/Zed/OrderPaymentCheck/Persistence/OrderPaymentCheckRepository(Interface).php`, `...PersistenceFactory.php` | Repository mit der Propel-Abfrage auf `spy_sales_payment` (`getSalesPaymentPropelQuery()`) |
-| `tests/PyzTest/Zed/OrderPaymentCheck/{codeception.yml,_support/OrderPaymentCheckBusinessTester.php,Business/ExampleOrderProcessTest.php}` | Test mit echter Bestellung (Command, Condition, manuelle Events, Timeout) |
+| `src/Pyz/Zed/OrderPaymentCheck/Persistence/OrderPaymentCheckRepository(Interface).php`, `...PersistenceFactory.php` | repository with the Propel query on `spy_sales_payment` (`getSalesPaymentPropelQuery()`) |
+| `tests/PyzTest/Zed/OrderPaymentCheck/{codeception.yml,_support/OrderPaymentCheckBusinessTester.php,Business/ExampleOrderProcessTest.php}` | test with a real order (command, condition, manual events, timeout) |
 
-**Hilfsmodul `OrderPaymentCheck`:** Plugins gehören in ein eigenes kleines Projektmodul, nicht in `Pyz\Zed\Oms` (dessen Facade ist die Core-Oms-Facade). Schichtenfolge Plugin (Communication) -> Facade (Business) -> Repository (Persistence); die Condition enthält keine Propel-Abfrage. Der Modulname enthält bewusst nicht `Example`: die Architecture-Sniffer-Regel `DisallowedModuleNameRule` (Project-Ruleset) verbietet `test|dummy|example|antelope` im Modulnamen. Das Modul braucht weder Schema noch Transfer noch DependencyProvider (die Entity `Orm\Zed\Payment\Persistence\SpySalesPaymentQuery` gehört dem Core-Modul `spryker/payment`). Eigene Regeln: Facade-Methode und Repository-Methode ersetzen, Plugin-Klassen bleiben dünn.
+**Helper module `OrderPaymentCheck`:** plugins belong in a separate small project module, not in `Pyz\Zed\Oms` (its Facade is the core Oms Facade). Layer order plugin (Communication) -> Facade (Business) -> repository (Persistence); the condition contains no Propel query. The module name deliberately does not contain `Example`: the Architecture Sniffer rule `DisallowedModuleNameRule` (project ruleset) forbids `test|dummy|example|antelope` in the module name. The module needs neither schema nor Transfer nor DependencyProvider (the entity `Orm\Zed\Payment\Persistence\SpySalesPaymentQuery` belongs to the core module `spryker/payment`). Your own rules: replace the Facade method and the repository method; plugin classes stay thin.
 
-## Platzhalter / Anpassung
-- Prozessname `ExampleOrder01` (Dateiname = Prozessname + `.xml`; neue Version = neuer Name `ExampleOrder02`, laufende Bestellungen bleiben auf der alten Version).
-- Plugin-Keys (`ExampleOrder/...`) müssen im XML und bei `->add()` identisch sein, sonst `CommandNotFoundException` / `ConditionNotFoundException`.
-- Die Condition ist ein Beispiel (Zahlungsdatensatz vorhanden); die echte Regel gehört in die Facade, der DB-Zugriff ins Repository (so im Template umgesetzt).
-- Zustandsnamen `display="oms.state.<x>"` brauchen Glossar-Einträge; im Demo-Glossar (`data/import/common/common/glossary.csv`) existieren `oms.state.new/confirmed/paid/shipped/closed/canceled`. Bei eigenen Zuständen eigene Schlüssel ergänzen, sonst erscheint der Schlüssel. Siehe [19-multi-store-i18n](../../references/19-multi-store-i18n.md).
+## Placeholders / customization
+- Process name `ExampleOrder01` (file name = process name + `.xml`; new version = new name `ExampleOrder02`, running orders stay on the old version).
+- Plugin keys (`ExampleOrder/...`) must be identical in the XML and in `->add()`, otherwise `CommandNotFoundException` / `ConditionNotFoundException`.
+- The condition is an example (payment record present); the real rule belongs in the Facade, the DB access in the repository (implemented this way in the template).
+- State names `display="oms.state.<x>"` need glossary entries; in the demo glossary (`data/import/common/common/glossary.csv`) `oms.state.new/confirmed/paid/shipped/closed/canceled` exist. For your own states add your own keys, otherwise the key is displayed. See [19-multi-store-i18n](../../references/19-multi-store-i18n.md).
 
-## Registrierung (Ausschnitte in bestehenden Dateien)
+## Registration (excerpts in existing files)
 
-1. Command und Condition, `src/Pyz/Zed/Oms/OmsDependencyProvider.php`:
+1. Command and condition, `src/Pyz/Zed/Oms/OmsDependencyProvider.php`:
 ```php
 use Pyz\Zed\OrderPaymentCheck\Communication\Plugin\Oms\Command\LogOrderConfirmedCommandPlugin;
 use Pyz\Zed\OrderPaymentCheck\Communication\Plugin\Oms\Condition\HasPaymentConditionPlugin;
@@ -36,7 +36,7 @@ public function provideBusinessLayerDependencies(Container $container): Containe
 {
     $container = parent::provideBusinessLayerDependencies($container);
     $container = $this->extendCommandPlugins($container);
-    $container = $this->extendConditionPlugins($container); // neu
+    $container = $this->extendConditionPlugins($container); // new
 
     return $container;
 }
@@ -44,7 +44,7 @@ public function provideBusinessLayerDependencies(Container $container): Containe
 protected function extendCommandPlugins(Container $container): Container
 {
     $container->extend(self::COMMAND_PLUGINS, function (CommandCollectionInterface $commandCollection) {
-        // ... bestehende Einträge ...
+        // ... existing entries ...
         $commandCollection->add(new LogOrderConfirmedCommandPlugin(), 'ExampleOrder/LogOrderConfirmed');
 
         return $commandCollection;
@@ -53,7 +53,7 @@ protected function extendCommandPlugins(Container $container): Container
     return $container;
 }
 
-protected function extendConditionPlugins(Container $container): Container // neu
+protected function extendConditionPlugins(Container $container): Container // new
 {
     $container->extend(self::CONDITION_PLUGINS, function (ConditionCollectionInterface $conditionCollection) {
         $conditionCollection->add(new HasPaymentConditionPlugin(), 'ExampleOrder/HasPayment');
@@ -64,9 +64,9 @@ protected function extendConditionPlugins(Container $container): Container // ne
     return $container;
 }
 ```
-Der Timeout-Processor `OmsTimeout/Initiation` ist im Release bereits über `getTimeoutProcessorPlugins()` registriert (`Pyz\Zed\Oms\Communication\Plugin\Oms\InitiationTimeoutProcessorPlugin`); nichts zu tun.
+The timeout processor `OmsTimeout/Initiation` is already registered in the release via `getTimeoutProcessorPlugins()` (`Pyz\Zed\Oms\Communication\Plugin\Oms\InitiationTimeoutProcessorPlugin`); nothing to do.
 
-2. Prozess aktivieren und einer Zahlart zuordnen. **Anhängen, nicht zuweisen:** `config/Shared/config_default.php` setzt `ACTIVE_PROCESSES` und das Mapping per Zuweisung `=` (`ForeignPaymentB2CStateMachine01`). Darüber lädt die Umgebungsdatei `config_default-docker.dev.php` (ebenso `-docker.demo`, `-docker.production`, `config_default-ci.php`) per `require` `common/config_oms-development.php`, die `DummyPayment01` und `Nopayment01` per `array_merge`/`array_replace` voranstellt. Live (Release 202610.0, `docker.dev`, per `Config::get()` gelesen) wirksam sind deshalb genau `DummyPayment01`, `Nopayment01`, `ForeignPaymentB2CStateMachine01`. Eine erneute Zuweisung `=` in einer später geladenen Umgebungsdatei würde diese Liste ersetzen (Dummy-/Foreign-Prozesse fielen weg). `config_default-docker.php` wird bei `docker.dev` nicht geladen; Änderungen dort (z. B. Z. 123) sind wirkungslos. Eintrag in der **wirksamen Umgebungsdatei** anhängen, im Demo-Shop z. B. am Ende von `config/Shared/common/config_oms-development.php` (nach den bestehenden Zuweisungen) oder in der Datei der jeweiligen Umgebung:
+2. Activate the process and map it to a payment method. **Append, do not assign:** `config/Shared/config_default.php` sets `ACTIVE_PROCESSES` and the mapping by assignment `=` (`ForeignPaymentB2CStateMachine01`). On top of that, the environment file `config_default-docker.dev.php` (likewise `-docker.demo`, `-docker.production`, `config_default-ci.php`) loads `common/config_oms-development.php` via `require`, which prepends `DummyPayment01` and `Nopayment01` via `array_merge`/`array_replace`. Live (release 202610.0, `docker.dev`, read via `Config::get()`) exactly `DummyPayment01`, `Nopayment01`, `ForeignPaymentB2CStateMachine01` are therefore effective. A renewed assignment `=` in a later loaded environment file would replace this list (the dummy/foreign processes would be dropped). `config_default-docker.php` is not loaded with `docker.dev`; changes there (e.g. line 123) have no effect. Append the entry in the **effective environment file**, in the demo shop e.g. at the end of `config/Shared/common/config_oms-development.php` (after the existing assignments) or in the file of the respective environment:
 ```php
 $config[OmsConstants::ACTIVE_PROCESSES] = array_merge($config[OmsConstants::ACTIVE_PROCESSES], [
     'ExampleOrder01',
@@ -74,31 +74,31 @@ $config[OmsConstants::ACTIVE_PROCESSES] = array_merge($config[OmsConstants::ACTI
 $config[SalesConstants::PAYMENT_METHOD_STATEMACHINE_MAPPING] = array_replace(
     $config[SalesConstants::PAYMENT_METHOD_STATEMACHINE_MAPPING],
     [
-        // Zahlart/Provider -> Prozess; hier nur zu Testzwecken, z. B. DummyPaymentConfig::PAYMENT_METHOD_INVOICE => 'ExampleOrder01',
+        // payment method/provider -> process; here only for testing purposes, e.g. DummyPaymentConfig::PAYMENT_METHOD_INVOICE => 'ExampleOrder01',
     ],
 );
 ```
-(`$config[OmsConstants::ACTIVE_PROCESSES][] = 'ExampleOrder01';` leistet für die Prozessliste dasselbe.) Wirksamkeit prüfen: Back Office Administration -> OMS (Prozess muss in der Liste stehen).
-Verzeichnis `config/Zed/oms` ist bereits in `OmsConstants::PROCESS_LOCATION` (Default `OmsConfig::DEFAULT_PROCESS_LOCATION`) enthalten.
+(`$config[OmsConstants::ACTIVE_PROCESSES][] = 'ExampleOrder01';` does the same for the process list.) Check effectiveness: Back Office Administration -> OMS (the process must be in the list).
+The directory `config/Zed/oms` is already contained in `OmsConstants::PROCESS_LOCATION` (default `OmsConfig::DEFAULT_PROCESS_LOCATION`).
 
-## Befehle danach
+## Commands afterwards
 ```bash
-docker/sdk cli console cache:empty-all               # [live verifiziert (202610.0)]
-docker/sdk cli console oms:process-cache:warm-up     # [live verifiziert (202610.0)] Prozess-Cache ist per Default AN, XML-Änderung wirkt sonst nicht
-docker/sdk cli console oms:check-condition           # [live verifiziert (202610.0)] normalerweise per Cronjob (jede Minute)
-docker/sdk cli console oms:check-timeout             # [live verifiziert (202610.0)] normalerweise per Cronjob (jede Minute)
-# Prozess als Test (Codeception, mit echter Bestellung): templates/oms-process/tests/PyzTest/Zed/OrderPaymentCheck
-docker/sdk cli vendor/bin/codecept run -c tests/PyzTest/Zed/OrderPaymentCheck   # [live verifiziert (202610.0)] 2 Tests
+docker/sdk cli console cache:empty-all               # [live verified (202610.0)]
+docker/sdk cli console oms:process-cache:warm-up     # [live verified (202610.0)] the process cache is ON by default, otherwise an XML change has no effect
+docker/sdk cli console oms:check-condition           # [live verified (202610.0)] normally via cronjob (every minute)
+docker/sdk cli console oms:check-timeout             # [live verified (202610.0)] normally via cronjob (every minute)
+# Process as a test (Codeception, with a real order): templates/oms-process/tests/PyzTest/Zed/OrderPaymentCheck
+docker/sdk cli vendor/bin/codecept run -c tests/PyzTest/Zed/OrderPaymentCheck   # [live verified (202610.0)] 2 tests
 ```
-Alle vier Konsolenbefehle liefen live mit Exit 0. Prozessgraph: Back Office `Administration -> OMS` (live: `ExampleOrder01` steht in der Liste, `GET /oms/index/draw?process=ExampleOrder01&format=svg&font=14&state=` liefert `image/svg+xml` mit den Zuständen, der Graph enthält `HasPayment`).
+All four console commands ran live with exit 0. Process graph: Back Office `Administration -> OMS` (live: `ExampleOrder01` is in the list, `GET /oms/index/draw?process=ExampleOrder01&format=svg&font=14&state=` returns `image/svg+xml` with the states, the graph contains `HasPayment`).
 
-**Test mit echter Bestellung (im Template enthalten, Dateien unter `tests/PyzTest/Zed/OrderPaymentCheck/`):** `SalesDataHelper::haveOrder(['unitPrice' => 100], 'ExampleOrder01')` legt eine Bestellung im Prozess an, `OmsHelper::addCommand()/addCondition()` registrieren die Plugins im Test-Container, `triggerEventForNewOrderItems()` feuert `confirm` (onEnter, Command läuft, Item -> `confirmed`), `checkCondition()` lässt das Item ohne Zahlung in `confirmed` und setzt es mit einer Zeile in `spy_sales_payment` auf `paid`, `OmsFacade::triggerEventForOrderItems('ship'|'close', ...)` führt zu `shipped` und `closed`; `moveItemAfterTimeOut()` plus `checkTimeout()` bringt ein unbezahltes Item nach `cancelled`. `codecept run` funktioniert für diese Zed-Business-Suite auch im Normalmodus über `docker/sdk cli` (kein Testing-Modus nötig); vorher `docker/sdk cli vendor/bin/codecept build`.
+**Test with a real order (included in the template, files under `tests/PyzTest/Zed/OrderPaymentCheck/`):** `SalesDataHelper::haveOrder(['unitPrice' => 100], 'ExampleOrder01')` creates an order in the process, `OmsHelper::addCommand()/addCondition()` register the plugins in the test container, `triggerEventForNewOrderItems()` fires `confirm` (onEnter, command runs, item -> `confirmed`), `checkCondition()` leaves the item in `confirmed` without a payment and sets it to `paid` with a row in `spy_sales_payment`, `OmsFacade::triggerEventForOrderItems('ship'|'close', ...)` leads to `shipped` and `closed`; `moveItemAfterTimeOut()` plus `checkTimeout()` moves an unpaid item to `cancelled`. `codecept run` works for this Zed business suite also in normal mode via `docker/sdk cli` (no testing mode needed); beforehand `docker/sdk cli vendor/bin/codecept build`.
 
-## Verwendete Quelle (Vorbild)
+## Source used (model)
 - `config/Zed/oms/DummyPayment01.xml`, `config/Zed/oms/Nopayment01.xml`
 - `vendor/spryker/dummy-payment/src/Spryker/Zed/DummyPayment/Communication/Plugin/Oms/{Command/PayPlugin,Condition/IsPayedPlugin}.php`
 - `src/Pyz/Zed/Oms/OmsDependencyProvider.php` (`extendCommandPlugins()`), `src/Pyz/Zed/Oms/Communication/Plugin/Oms/InitiationTimeoutProcessorPlugin.php`
-- Interfaces: `Spryker\Zed\Oms\Dependency\Plugin\Command\CommandByOrderInterface`, `...\Condition\ConditionInterface`, Collections `...\Command\CommandCollectionInterface`, `...\Condition\ConditionCollectionInterface`
+- Interfaces: `Spryker\Zed\Oms\Dependency\Plugin\Command\CommandByOrderInterface`, `...\Condition\ConditionInterface`, collections `...\Command\CommandCollectionInterface`, `...\Condition\ConditionCollectionInterface`
 
-## Verifikationsstatus
-Durchgespielt im Shop 202610.0: Registrierung (Command, Condition, `ACTIVE_PROCESSES` in `config_oms-development.php`) wie beschrieben, Prozess im Back Office sichtbar und gezeichnet, Command, Condition, manuelle Events und Timeout mit echter Bestellung im Codeception-Test ausgeführt (2 Tests grün), `code:sniff:style` und PHPStan Level 6 für `OrderPaymentCheck` ohne Befund. Der Rückgabetyp `: array` bzw. `: bool` in den Plugins ist gegenüber den untypisierten Core-Interfaces kovariant zulässig. `[live verifiziert (202610.0)]`
+## Verification status
+Walked through in shop 202610.0: registration (command, condition, `ACTIVE_PROCESSES` in `config_oms-development.php`) as described, process visible and drawn in the Back Office, command, condition, manual events and timeout executed with a real order in the Codeception test (2 tests green), `code:sniff:style` and PHPStan level 6 for `OrderPaymentCheck` without findings. The return type `: array` or `: bool` in the plugins is covariantly permissible compared to the untyped core interfaces. `[live verified (202610.0)]`

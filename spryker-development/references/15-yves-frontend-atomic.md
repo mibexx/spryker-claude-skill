@@ -1,72 +1,72 @@
-# Yves Atomic Frontend, Themes und Frontend-Build (Recherche T-15)
+# Yves Atomic Frontend, themes and frontend build
 
-> Status: Release b2b-demo-shop 202610.0 (`spryker-shop/shop-ui` 2.6.0, `spryker/setup-frontend` 1.9.0, `spryker/twig` 3.33.0). `[code-verifiziert, Doku nicht abgeglichen]`: Aussagen stammen aus `vendor/` und `src/Pyz`; nur die Doku-Seiten "Frontend builder for Yves v2", "multi-theme" und "yves-frontend" wurden inhaltlich gelesen. `npm`-Befehle im Container ausgeführt `[live verifiziert (202610.0)]`; die `frontend:*`-Konsolenbefehle ausgeführt `[live verifiziert (202610.0)]` (`frontend:zed:install-dependencies` ist deprecated und endet im Projekt mit Exit 1). Das Neu-Komponenten-Beispiel (product-badge) ist nach Core-Mustern geschrieben und nicht gebaut `[Annahme]`. Abweichung zur Recherche: `$setting-color-alert` existiert nicht (nur Map `$setting-color-actions`); `rem()`/`fw()` existieren als Pyz-Helper (`src/Pyz/Yves/ShopUi/Theme/default/styles/helpers/`).
+> Status: release b2b-demo-shop 202610.0 (`spryker-shop/shop-ui` 2.6.0, `spryker/setup-frontend` 1.9.0, `spryker/twig` 3.33.0). `[code-verified, docs not cross-checked]`: statements come from `vendor/` and `src/Pyz`; only the docs pages "Frontend builder for Yves v2", "multi-theme" and "yves-frontend" were read for content. `npm` commands executed in the container `[live verified (202610.0)]`; the `frontend:*` console commands executed `[live verified (202610.0)]` (`frontend:zed:install-dependencies` is deprecated and ends with exit 1 in the project). The new-component example (product-badge) is written following core patterns and was not built `[Assumption]`. Note: `$setting-color-alert` does not exist (only the map `$setting-color-actions`); `rem()`/`fw()` exist as Pyz helpers (`src/Pyz/Yves/ShopUi/Theme/default/styles/helpers/`).
 
-## Zweck
+## Purpose
 
-Wie UI in Yves aufgebaut, überschrieben und gebaut wird: Atomic Design (Atom, Molecule, Organism, Template, View), Twig-Vererbung, Theme-Auflösung, TypeScript-Custom-Elements, Frontend-Builder v2. Controller/Routing → [14](14-yves-controller-routing.md); Widgets → [16](16-widgets.md); CMS-Slots → [17](17-cms.md); Übersetzungen (`| trans`) → [19](19-multi-store-i18n.md).
+How UI in Yves is built, overridden and compiled: Atomic Design (atom, molecule, organism, template, view), Twig inheritance, theme resolution, TypeScript custom elements, frontend builder v2. Controllers/routing → [14](14-yves-controller-routing.md); widgets → [16](16-widgets.md); CMS slots → [17](17-cms.md); translations (`| trans`) → [19](19-multi-store-i18n.md).
 
-## Konzepte
+## Concepts
 
-**Ebenen** (je Yves-Modul unter `…/Yves/<Modul>/Theme/<theme>/`, Standard-Theme `default`):
+**Levels** (per Yves module under `…/Yves/<Module>/Theme/<theme>/`, default theme `default`):
 
-| Ebene | Pfad | Twig-Aufruf | Beispiel |
+| Level | Path | Twig call | Example |
 |---|---|---|---|
-| Atom | `components/atoms/<name>/` | `atom('<name>', '<Modul>')` | button, icon, title |
+| Atom | `components/atoms/<name>/` | `atom('<name>', '<Module>')` | button, icon, title |
 | Molecule | `components/molecules/<name>/` | `molecule(...)` | search-form, product-item |
 | Organism | `components/organisms/<name>/` | `organism(...)` | header, footer |
 | Template | `templates/<name>/` | `template(...)` | `page-layout-main`, `page-layout-catalog` |
-| View | `views/<name>/` | `view(...)` | vom Controller gerendert |
-| Model | `models/` (nur ShopUi) | `model('component')`, `model('template')` | Basis-Twig |
+| View | `views/<name>/` | `view(...)` | rendered by the controller |
+| Model | `models/` (ShopUi only) | `model('component')`, `model('template')` | base Twig |
 
-Modulname default `ShopUi`. Dateien je Komponente (Ordner = Komponente = Dateiname): `<name>.twig`, **`index.ts`** (Entry-Point; ohne ihn wird nicht gebaut), optional `<name>.ts`, `style.scss` + `<name>.scss`, `README.md`. Namen kebab-case = Custom-Element-Tag = BEM-Block (`name__element`, `name--modifier`); JS-Hooks `js-<name>__<element>` (`config.jsName`).
+Module name default `ShopUi`. Files per component (folder = component = file name): `<name>.twig`, **`index.ts`** (entry point; without it nothing is built), optional `<name>.ts`, `style.scss` + `<name>.scss`, `README.md`. Names kebab-case = custom element tag = BEM block (`name__element`, `name--modifier`); JS hooks `js-<name>__<element>` (`config.jsName`).
 
-**Twig-Funktionen** (`ShopUiTwigExtension`): `atom/molecule/organism/template/view(name, modul)`, `model(name)`, `publicPath(rel)`, `componentClass`, `componentAttributes`, `qa`. Tag `{% define var = {…} %}` setzt Defaults; von außen übergebene Werte überschreiben; Wert `required` wirft im Dev-Modus einen Fehler, wenn nicht gesetzt. Standard-Variablen jeder Komponente (`models/component.twig`): `config` (`name`, `jsName`, `tag`), `data`, `attributes`, `modifiers`, `class`, `embed`, `qa`. Blöcke: `component`, `class`, `extraClass`, `attributes`, `body`.
+**Twig functions** (`ShopUiTwigExtension`): `atom/molecule/organism/template/view(name, module)`, `model(name)`, `publicPath(rel)`, `componentClass`, `componentAttributes`, `qa`. The tag `{% define var = {…} %}` sets defaults; values passed from outside override them; the value `required` throws an error in dev mode if not set. Standard variables of every component (`models/component.twig`): `config` (`name`, `jsName`, `tag`), `data`, `attributes`, `modifiers`, `class`, `embed`, `qa`. Blocks: `component`, `class`, `extraClass`, `attributes`, `body`.
 
-**Einbinden:** `include` statisch, `embed` zusätzlich mit Block-Override, `extends` zum Erben. Konvention: immer `only` an `include`/`embed` (Kontext-Leck vermeiden). Core-Komponente erweitern: `{% extends molecule('x', '@SprykerShop:ShopUi') %}` (Syntax `@<Organisation>:<Modul>[:<theme>]`; ohne Präfix würde die Pyz-Datei sich selbst erben `[Annahme]`).
+**Including:** `include` static, `embed` additionally with block override, `extends` for inheriting. Convention: always use `only` with `include`/`embed` (avoid context leaks). Extending a core component: `{% extends molecule('x', '@SprykerShop:ShopUi') %}` (syntax `@<Organization>:<Module>[:<theme>]`; without the prefix the Pyz file would inherit from itself `[Assumption]`).
 
-**Theme-Auflösung** (`Spryker\Yves\Twig\TwigConfig::getTemplatePaths()`): Projekt-Namespace mit aktuellem Theme, dann Projekt `default`, dann Core nur `default`. Regel: Current Theme > Default, Projekt > Core. Core liefert nur `default`; weitere Themes existieren nur im Projekt. Konfig `config/Shared/config_default-docker.php:173-175`: `TwigConstants::YVES_THEME` und `CmsConstants::YVES_THEME` (beide setzen, sonst finden CMS-Templates nichts → [17](17-cms.md)).
+**Theme resolution** (`Spryker\Yves\Twig\TwigConfig::getTemplatePaths()`): project namespace with current theme, then project `default`, then core `default` only. Rule: current theme > default, project > core. Core only ships `default`; further themes exist only in the project. Config `config/Shared/config_default-docker.php:173-175`: `TwigConstants::YVES_THEME` and `CmsConstants::YVES_THEME` (set both, otherwise CMS templates find nothing → [17](17-cms.md)).
 
-**Überschreiben von Core** (drei Wege): (1) ersetzen = gleiche Pfadstruktur in `src/Pyz/Yves/<Modul>/Theme/default/…` (Core-Styles dieser Komponente werden dann nicht mitgebaut); (2) erweitern (upgrade-freundlich): `extends … '@SprykerShop:<Modul>'` + nur geänderte Blöcke, TS `extends <Core>Component`; (3) Styles über Base-Hooks `shop-ui-<name>-base-hook`.
+**Overriding core** (three ways): (1) replace = same path structure in `src/Pyz/Yves/<Module>/Theme/default/…` (the core styles of this component are then not built along); (2) extend (upgrade-friendly): `extends … '@SprykerShop:<Module>'` + only changed blocks, TS `extends <Core>Component`; (3) styles via base hooks `shop-ui-<name>-base-hook`.
 
-**TypeScript:** Basis `ShopUi/models/component` (`Component extends HTMLElement`; Felder `name`, `jsName`; `init()`, `dispatchCustomEvent()`). Custom-Element-Tag = Komponentenname (enthält Bindestrich), im Twig `config.tag`. Registrierung per `register(tag, () => import(...))` aus `ShopUi/app/registry` im `index.ts`; Chunk wird lazy geladen, nur wenn das Element im DOM steht. Konfiguration über HTML-Attribute (`attributes`) + `this.getAttribute()`.
-**[Deprecated/entfernt] `readyCallback()`** seit ShopUi 2.0.0 -> nur `protected init(): void`. Ein übrig gebliebenes `readyCallback()` kompiliert, wird nie aufgerufen. Prüfung: `grep -rn "readyCallback" src/Pyz` (im Release ohne Treffer).
+**TypeScript:** base `ShopUi/models/component` (`Component extends HTMLElement`; fields `name`, `jsName`; `init()`, `dispatchCustomEvent()`). Custom element tag = component name (contains a hyphen), in Twig `config.tag`. Registration via `register(tag, () => import(...))` from `ShopUi/app/registry` in `index.ts`; the chunk is loaded lazily, only when the element is in the DOM. Configuration via HTML attributes (`attributes`) + `this.getAttribute()`.
+**[Deprecated/removed] `readyCallback()`** since ShopUi 2.0.0 -> only `protected init(): void`. A leftover `readyCallback()` compiles but is never called. Check: `grep -rn "readyCallback" src/Pyz` (no hits in the release).
 
-**Build (Frontend-Builder v2)** liegt in `vendor/spryker-shop/shop-ui/src/SprykerShop/Yves/ShopUi/FrontendBuilder/` (TypeScript `.mts`, Webpack 5, `sass-embedded`, Node >= 24.15). **[Deprecated]** Builder v1 (`frontend/settings.js`, `frontend/libs`) ist im Projekt nicht mehr vorhanden. Quellen-Scan-Reihenfolge (spätere gewinnt): `vendor/spryker-shop` -> `vendor/spryker` -> `vendor/spryker-eco` -> `vendor/spryker-feature` -> `src/Pyz/Yves`. Namespaces/Themes: `config/Yves/frontend-build-config.json` (`codeBucket`, `namespace`, `themes`, `defaultTheme`; `themes: []` = nur Default). Ausgabe: `public/Yves/assets/<SPRYKER_BUILD_HASH|current>/<theme>/{css,js,fonts,icons,images}`; CSS-Bundles `critical`, `non-critical`, `app` (= beides, ab ShopUi 2.4.0), `util`. URL-Muster `ShopUiConstants::YVES_ASSETS_URL_PATTERN` (`config/Shared/config_default.php:714`). Assets im Twig immer über `publicPath('images/…')`.
+**Build (frontend builder v2)** lives in `vendor/spryker-shop/shop-ui/src/SprykerShop/Yves/ShopUi/FrontendBuilder/` (TypeScript `.mts`, Webpack 5, `sass-embedded`, Node >= 24.15). **[Deprecated]** Builder v1 (`frontend/settings.js`, `frontend/libs`) no longer exists in the project. Source scan order (later wins): `vendor/spryker-shop` -> `vendor/spryker` -> `vendor/spryker-eco` -> `vendor/spryker-feature` -> `src/Pyz/Yves`. Namespaces/themes: `config/Yves/frontend-build-config.json` (`codeBucket`, `namespace`, `themes`, `defaultTheme`; `themes: []` = default only). Output: `public/Yves/assets/<SPRYKER_BUILD_HASH|current>/<theme>/{css,js,fonts,icons,images}`; CSS bundles `critical`, `non-critical`, `app` (= both, since ShopUi 2.4.0), `util`. URL pattern `ShopUiConstants::YVES_ASSETS_URL_PATTERN` (`config/Shared/config_default.php:714`). Assets in Twig always via `publicPath('images/…')`.
 
-**Sass-Kontrakt v2** (für neue Komponenten): `<name>.scss` definiert nur `@mixin shop-ui-<name>($name: '.<name>') { … }` (Mixin am Zeilenanfang, sonst findet der Mixin-Index es nicht), `style.scss` ruft `@include helper-import(<ebene>, <name>) { @include shop-ui-<name>; }`, `index.ts` importiert `./style.scss`. Variablen (`$setting-color-*`), Helper (`helper-color-light()`, `rem()`, `fw()`) werden automatisch injiziert (`styles/shared.scss`), nicht importieren. Teile des Pyz-Codes nutzen noch den v1-Kontrakt (`index.ts` = `import './x.scss'`, SCSS emittiert selbst), der über "Legacy style rescue" läuft (`--debug-injection` zeigt ihn).
+**Sass contract v2** (for new components): `<name>.scss` only defines `@mixin shop-ui-<name>($name: '.<name>') { … }` (mixin at the start of the line, otherwise the mixin index does not find it), `style.scss` calls `@include helper-import(<level>, <name>) { @include shop-ui-<name>; }`, `index.ts` imports `./style.scss`. Variables (`$setting-color-*`), helpers (`helper-color-light()`, `rem()`, `fw()`) are injected automatically (`styles/shared.scss`), do not import them. Parts of the Pyz code still use the v1 contract (`index.ts` = `import './x.scss'`, SCSS emits itself), which runs via "Legacy style rescue" (`--debug-injection` shows it).
 
-## Anleitung
+## Instructions
 
-1. **Ablageort wählen:** neue UI in eigenem Pyz-Modul `src/Pyz/Yves/<Modul>/Theme/default/…` oder im vorhandenen Pyz-ShopUi (`src/Pyz/Yves/ShopUi/Theme/default/components/…`). Nie in `vendor/` editieren ([28](28-upgradability.md)).
-2. **Komponente anlegen:** Ordner `components/<ebene>/<name>/` mit `<name>.twig` (`{% extends model('component') %}`, `config`/`data`/`attributes` per `define`, `{% block body %}`), `<name>.scss` (Mixin), `style.scss`, `index.ts`; bei Verhalten zusätzlich `<name>.ts` (Custom Element) und `register(...)` im `index.ts`.
-3. **Einbinden:** `{% include molecule('<name>') with { data: {…} } only %}` aus View/Template/Widget-Twig.
-4. **Core-Komponente anpassen:** gleichnamigen Ordner in Pyz anlegen, Twig mit `extends … '@SprykerShop:ShopUi'`, nur Blöcke ändern; Styles mit Base-Hook (`@mixin shop-ui-button-base-hook { … }` als Top-Level-Mixin im Pyz-Komponentenordner `[Annahme: Dateiplatzierung]`; im Release nicht verwendet).
-5. **Bauen:** `docker/sdk cli 'npm run yves'` (Dev), `yves:watch`, `yves:production`. Neue Komponente (neuer `index.ts`) erfordert Neustart von `yves:watch`. Danach ggf. `docker/sdk cli console cache:empty-all` ([25](25-performance-caching.md)).
-6. **Weiteres Theme:** `TwigConstants::YVES_THEME`/`CmsConstants::YVES_THEME` auf Namen setzen, nur Abweichungen unter `…/Theme/<theme>/…` ablegen, `frontend:yves:build` oder Name in `frontend-build-config.json` `themes` eintragen. Nicht im Release ausprobiert `[Annahme]` (abgeleitet aus `settings.mts`, `AssetsUrlProvider`). Nicht verwechseln: Doku "multi-theme" (2021) nennt `moduleSuffix`, heute heißt es `codeBucket`.
+1. **Choose the location:** new UI in your own Pyz module `src/Pyz/Yves/<Module>/Theme/default/…` or in the existing Pyz ShopUi (`src/Pyz/Yves/ShopUi/Theme/default/components/…`). Never edit in `vendor/` ([28](28-upgradability.md)).
+2. **Create the component:** folder `components/<level>/<name>/` with `<name>.twig` (`{% extends model('component') %}`, `config`/`data`/`attributes` via `define`, `{% block body %}`), `<name>.scss` (mixin), `style.scss`, `index.ts`; for behavior additionally `<name>.ts` (custom element) and `register(...)` in `index.ts`.
+3. **Include:** `{% include molecule('<name>') with { data: {…} } only %}` from view/template/widget Twig.
+4. **Adapt a core component:** create a folder with the same name in Pyz, Twig with `extends … '@SprykerShop:ShopUi'`, change only blocks; styles with base hook (`@mixin shop-ui-button-base-hook { … }` as a top-level mixin in the Pyz component folder `[Assumption: file placement]`; not used in the release).
+5. **Build:** `docker/sdk cli 'npm run yves'` (dev), `yves:watch`, `yves:production`. A new component (new `index.ts`) requires restarting `yves:watch`. Afterwards, if needed, `docker/sdk cli console cache:empty-all` ([25](25-performance-caching.md)).
+6. **Additional theme:** set `TwigConstants::YVES_THEME`/`CmsConstants::YVES_THEME` to the name, place only deviations under `…/Theme/<theme>/…`, `frontend:yves:build` or add the name to `themes` in `frontend-build-config.json`. Not tried in the release `[Assumption]` (derived from `settings.mts`, `AssetsUrlProvider`). Do not confuse: the "multi-theme" docs (2021) mention `moduleSuffix`, today it is called `codeBucket`.
 
-Befehle (im Projektroot): alle `npm`-Zeilen und `console frontend:*`-Zeilen ausgeführt `[live verifiziert (202610.0)]` (Dev-Build ~3-8 s, `yves:production` ~11 s, `watch` kompiliert erfolgreich und läuft bis Abbruch). Hinweis: `/data/node_modules` liegt nur im Container; nach `docker/sdk down`/`up` (Container neu erzeugt) ist es leer, `docker/sdk up --assets` (~100 s) installiert neu:
+Commands (in the project root): all `npm` lines and `console frontend:*` lines executed `[live verified (202610.0)]` (dev build ~3-8 s, `yves:production` ~11 s, `watch` compiles successfully and runs until aborted). Note: `/data/node_modules` only exists in the container; after `docker/sdk down`/`up` (container recreated) it is empty, `docker/sdk up --assets` (~100 s) reinstalls:
 
-| Befehl | Wirkung |
+| Command | Effect |
 |---|---|
-| `docker/sdk cli 'npm install'` | Workspaces-Abhängigkeiten; `postinstall` aktualisiert die `tsconfig.yves.json` unter `vendor/spryker-shop/shop-ui/…/FrontendBuilder/` (im Projektroot liegt nur `tsconfig.json`) |
-| `docker/sdk cli 'npm run yves'` / `yves:watch` / `yves:production` | Dev-Build / Watch mit Live-Reload / minifiziert |
-| `docker/sdk cli 'npm run yves -- -i'` | Namespaces/Themes anzeigen |
-| `docker/sdk cli 'npm run yves -- -t default'` | nur Theme bauen; Namespace-Option `-n` hier nicht sinnvoll: das Projekt kennt nur den Namespace `""` (`npm run yves -- -i` meldet ihn, `[live verifiziert (202610.0)]`) |
-| `docker/sdk cli 'npm run yves -- --debug-injection'` | Sass-Injection, Mixin-Auflösung, Legacy-Rescue |
+| `docker/sdk cli 'npm install'` | workspace dependencies; `postinstall` updates the `tsconfig.yves.json` under `vendor/spryker-shop/shop-ui/…/FrontendBuilder/` (the project root only contains `tsconfig.json`) |
+| `docker/sdk cli 'npm run yves'` / `yves:watch` / `yves:production` | dev build / watch with live reload / minified |
+| `docker/sdk cli 'npm run yves -- -i'` | show namespaces/themes |
+| `docker/sdk cli 'npm run yves -- -t default'` | build only the theme; the namespace option `-n` is not useful here: the project only knows the namespace `""` (`npm run yves -- -i` reports it, `[live verified (202610.0)]`) |
+| `docker/sdk cli 'npm run yves -- --debug-injection'` | Sass injection, mixin resolution, legacy rescue |
 | `docker/sdk cli 'npm run yves:lint'` / `yves:stylelint` | ESLint / Stylelint |
-| `docker/sdk cli console frontend:yves:install-dependencies` | npm install via Console |
-| `docker/sdk cli console frontend:yves:build` | schreibt `data/cache/Yves/frontend/build-config.json`, startet Build (`-e production`) |
+| `docker/sdk cli console frontend:yves:install-dependencies` | npm install via console |
+| `docker/sdk cli console frontend:yves:build` | writes `data/cache/Yves/frontend/build-config.json`, starts the build (`-e production`) |
 
-`frontend:yves:cleanup-assets` ist **nicht registriert**: die Klasse `YvesAssetsCleanUpConsole` liegt in `vendor/spryker/setup-frontend`, steht aber nicht in `Pyz\Zed\Console\ConsoleDependencyProvider` und fehlt in `console list` (gleiches gilt für `ZedAssetsCleanUpConsole`). Nur die Befehle aus `console list` verwenden.
+`frontend:yves:cleanup-assets` is **not registered**: the class `YvesAssetsCleanUpConsole` lives in `vendor/spryker/setup-frontend`, but is not in `Pyz\Zed\Console\ConsoleDependencyProvider` and is missing from `console list` (the same applies to `ZedAssetsCleanUpConsole`). Only use the commands from `console list`.
 
 **[Deprecated]** `frontend:npm:run` (`RunnerConsole`, "Will be removed without replacement") -> `frontend:yves:build` / `frontend:zed:build`.
 
-## Beispiele
+## Examples
 
-Vollständige Vorlage (Molecule `product-badge`, Organism `product-badge-list`): [../templates/twig-molecule-organism/](../templates/twig-molecule-organism/README.md).
+Complete template (molecule `product-badge`, organism `product-badge-list`): [../templates/twig-molecule-organism/](../templates/twig-molecule-organism/README.md).
 
-**Core erweitern (echt, Pyz):** `src/Pyz/Yves/ShopUi/Theme/default/components/molecules/product-item/product-item.twig`
+**Extending core (real, Pyz):** `src/Pyz/Yves/ShopUi/Theme/default/components/molecules/product-item/product-item.twig`
 
 ```twig
 {% extends molecule('product-item', '@SprykerShop:ShopUi') %}
@@ -89,9 +89,9 @@ Vollständige Vorlage (Molecule `product-badge`, Organism `product-badge-list`):
 {% endblock %}
 ```
 
-`product-item.ts` im Pyz-Ordner: `import ProductItemCore from 'ShopUi/components/molecules/product-item/product-item'; export default class ProductItem extends ProductItemCore { protected init(): void { …; super.init(); } }`; `index.ts` ruft `register('product-item', () => import(/* webpackMode: "lazy" */ /* webpackChunkName: "product-item" */ './product-item'))`.
+`product-item.ts` in the Pyz folder: `import ProductItemCore from 'ShopUi/components/molecules/product-item/product-item'; export default class ProductItem extends ProductItemCore { protected init(): void { …; super.init(); } }`; `index.ts` calls `register('product-item', () => import(/* webpackMode: "lazy" */ /* webpackChunkName: "product-item" */ './product-item'))`.
 
-**Layout überschreiben (echt, gekürzt):** `src/Pyz/Yves/ShopUi/Theme/default/templates/page-layout-main/page-layout-main.twig`
+**Overriding the layout (real, shortened):** `src/Pyz/Yves/ShopUi/Theme/default/templates/page-layout-main/page-layout-main.twig`
 
 ```twig
 {% extends template('page-layout-main', '@SprykerShop:ShopUi') %}
@@ -106,40 +106,40 @@ Vollständige Vorlage (Molecule `product-badge`, Organism `product-badge-list`):
 {% endblock %}
 ```
 
-**Core-Vorbild v2-Kontrakt (echt):** `organisms/header`: `index.ts` = `import './style.scss';`, `style.scss` = `@include helper-import(organism, header) { @include shop-ui-header; }`, `header.scss` = `@mixin shop-ui-header($name: '.header') { #{$name} { … @if meta.mixin-exists(shop-ui-header-base-hook) { @include shop-ui-header-base-hook; } … @content; } }` mit `@use 'sass:meta';`.
+**Core reference for the v2 contract (real):** `organisms/header`: `index.ts` = `import './style.scss';`, `style.scss` = `@include helper-import(organism, header) { @include shop-ui-header; }`, `header.scss` = `@mixin shop-ui-header($name: '.header') { #{$name} { … @if meta.mixin-exists(shop-ui-header-base-hook) { @include shop-ui-header-base-hook; } … @content; } }` with `@use 'sass:meta';`.
 
-**Basis-Layout-Kette:** `template('page-blank')` (HTML-Gerüst, Assets) <- `template('page-layout-main')` (Header, Footer, Slots) <- modulspezifische `page-layout-*` (catalog, cart, checkout, customer, company, cms, …) <- `view(...)`.
+**Base layout chain:** `template('page-blank')` (HTML skeleton, assets) <- `template('page-layout-main')` (header, footer, slots) <- module-specific `page-layout-*` (catalog, cart, checkout, customer, company, cms, …) <- `view(...)`.
 
-## Fallstricke
+## Pitfalls
 
-1. `readyCallback()` statt `init()` -> Komponente tut stillschweigend nichts (ShopUi >= 2.0.0).
-2. `index.ts` fehlt oder Ordnername != Dateiname -> nicht gebaut / Twig-Pfad nicht gefunden.
-3. `@mixin` nicht am Zeilenanfang, oder Top-Level-CSS ohne Import aus `index.ts` -> "unknown mixin" bzw. Legacy-Rescue.
-4. `include`/`embed` ohne `only` -> Kontext-Leck.
-5. Core überschreiben ohne `@SprykerShop:<Modul>` -> Selbstvererbung `[Annahme]`.
-6. Assets hartcodiert statt `publicPath()` -> bricht mit Hash/Theme.
-7. Build-Artefakte committen (`public/Yves/assets/…`, generiertes `frontend/assets/global/default/icons/sprite.svg`).
-8. Node < 24 -> Builder (`.mts` nativ) startet nicht.
-9. `CmsConstants::YVES_THEME` bei Theme-Wechsel vergessen.
-10. `@use`/`@forward` in `styles/shared.scss` mit gleichen Namen auf beiden Ebenen -> Sass-Fehler; Core-Werte nur über `@forward '~ShopUi/styles/shared' with (…)` setzen.
-11. Typprüfung `yves:lint` ist im Projekt-Layout per Default aus (`typecheck: false`, aktivierbar in `frontend/yves.settings.mts`, existiert im Release nicht).
-12. Variable `$setting-color-alert` existiert nicht: Aktionsfarben über Map `$setting-color-actions` (`success`, `warning`, `alert`) per `map.get`.
+1. `readyCallback()` instead of `init()` -> component silently does nothing (ShopUi >= 2.0.0).
+2. `index.ts` missing or folder name != file name -> not built / Twig path not found.
+3. `@mixin` not at the start of the line, or top-level CSS without import from `index.ts` -> "unknown mixin" or legacy rescue.
+4. `include`/`embed` without `only` -> context leak.
+5. Overriding core without `@SprykerShop:<Module>` -> self-inheritance `[Assumption]`.
+6. Hard-coded assets instead of `publicPath()` -> breaks with hash/theme.
+7. Committing build artifacts (`public/Yves/assets/…`, generated `frontend/assets/global/default/icons/sprite.svg`).
+8. Node < 24 -> builder (native `.mts`) does not start.
+9. Forgetting `CmsConstants::YVES_THEME` when switching themes.
+10. `@use`/`@forward` in `styles/shared.scss` with the same names on both levels -> Sass error; set core values only via `@forward '~ShopUi/styles/shared' with (…)`.
+11. Type checking in `yves:lint` is off by default in the project layout (`typecheck: false`, can be enabled in `frontend/yves.settings.mts`, which does not exist in the release).
+12. The variable `$setting-color-alert` does not exist: action colors via the map `$setting-color-actions` (`success`, `warning`, `alert`) with `map.get`.
 
-## Checkliste
+## Checklist
 
-- [ ] Komponente in `src/Pyz/Yves/<Modul>/Theme/default/…`, nichts in `vendor/`
-- [ ] Ordner = Dateiname = Tag = BEM-Block, `index.ts` vorhanden
-- [ ] Twig: `extends model('component')`, `define` mit `required` für Pflichtwerte, Einbindung mit `only`
-- [ ] SCSS im v2-Kontrakt (Mixin + `style.scss`), keine Core-Kopie, wenn Block/Hook reicht
-- [ ] TS nur `init()`, `super.init()` bei Erweiterung, Tag mit Bindestrich
-- [ ] Assets nur über `publicPath()`
-- [ ] `npm run yves` (und `yves:lint`, `yves:stylelint`) läuft, `yves:production` vor Release geprüft
-- [ ] Theme-Wechsel: `TwigConstants::YVES_THEME` und `CmsConstants::YVES_THEME`
+- [ ] Component in `src/Pyz/Yves/<Module>/Theme/default/…`, nothing in `vendor/`
+- [ ] Folder = file name = tag = BEM block, `index.ts` present
+- [ ] Twig: `extends model('component')`, `define` with `required` for mandatory values, inclusion with `only`
+- [ ] SCSS in the v2 contract (mixin + `style.scss`), no core copy if a block/hook is enough
+- [ ] TS only `init()`, `super.init()` when extending, tag with a hyphen
+- [ ] Assets only via `publicPath()`
+- [ ] `npm run yves` (and `yves:lint`, `yves:stylelint`) runs, `yves:production` checked before release
+- [ ] Theme switch: `TwigConstants::YVES_THEME` and `CmsConstants::YVES_THEME`
 
-## Quellen
+## Sources
 
-Doku (Basis `https://docs.spryker.com/docs/`): `dg/dev/frontend-development/latest/yves/frontend-builder-for-yves-v2.html` (Stand 7. Okt. 2026), `…/yves/multi-theme.html` (2021, teils veraltet), `…/yves/yves-frontend.html`, `…/yves/frontend-assets-building-and-loading.html`, `…/yves/adding-and-using-external-libraries-in-yves.html`, `…/npm-workspaces-for-frontend-builders.html`.
+Docs (base `https://docs.spryker.com/docs/`): `dg/dev/frontend-development/latest/yves/frontend-builder-for-yves-v2.html` (as of Oct 7, 2026), `…/yves/multi-theme.html` (2021, partly outdated), `…/yves/yves-frontend.html`, `…/yves/frontend-assets-building-and-loading.html`, `…/yves/adding-and-using-external-libraries-in-yves.html`, `…/npm-workspaces-for-frontend-builders.html`.
 
 Code: `vendor/spryker-shop/shop-ui/src/SprykerShop/Yves/ShopUi/{FrontendBuilder/{build,settings}.mts,Twig/ShopUiTwigExtension.php,Twig/TokenParser/ShopUiDefineTwigTokenParser.php,Theme/default/{models/component.{ts,twig},app/registry.ts,components/**,styles/**}}`, `vendor/spryker/twig/src/Spryker/Yves/Twig/TwigConfig.php`, `vendor/spryker/setup-frontend/…/Console/{YvesBuildFrontendConsole,Npm/RunnerConsole}.php`, `src/Pyz/Yves/ShopUi/Theme/default/**`, `config/Yves/frontend-build-config.json`, `package.json`.
 
-Nachbarn: [14 Controller/Routing](14-yves-controller-routing.md), [16 Widgets](16-widgets.md), [17 CMS](17-cms.md), [19 Multi-Store/i18n](19-multi-store-i18n.md), [28 Upgradability](28-upgradability.md), [30 Docker-SDK](30-docker-sdk-workflow.md). Template: [../templates/twig-molecule-organism/](../templates/twig-molecule-organism/README.md).
+Neighbors: [14 Controller/routing](14-yves-controller-routing.md), [16 Widgets](16-widgets.md), [17 CMS](17-cms.md), [19 Multi-store/i18n](19-multi-store-i18n.md), [28 Upgradability](28-upgradability.md), [30 Docker SDK](30-docker-sdk-workflow.md). Template: [../templates/twig-molecule-organism/](../templates/twig-molecule-organism/README.md).

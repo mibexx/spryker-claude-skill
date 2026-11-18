@@ -1,41 +1,41 @@
-# Template: back-office-page (Zed-Modul `ProductBadgeGui`)
+# Template: back-office-page (Zed module `ProductBadgeGui`)
 
-## Zweck
+## Purpose
 
-Back-Office-Seite für das Laufbeispiel ProductBadge: Liste (Tabelle mit Suche/Sortierung, Ajax), Anlegen per Symfony-Formular mit DataProvider, Menüeintrag, Übersetzungen (CSV), ACL-Rolle per Installer-Plugin. Konzepte und Fallstricke: [../../references/18-back-office.md](../../references/18-back-office.md).
+Back Office page for the running example ProductBadge: list (table with search/sorting, Ajax), creation via a Symfony form with DataProvider, menu entry, translations (CSV), ACL role via installer plugin. Concepts and pitfalls: [../../references/18-back-office.md](../../references/18-back-office.md).
 
-Voraussetzung: das Business-Modul `Pyz\Zed\ProductBadge` (Template `zed-module`) mit `ProductBadgeFacadeInterface::createProductBadge(ProductBadgeTransfer): ProductBadgeTransfer` und die Propel-Tabelle `spy_product_badge` mit Namespace `Orm\Zed\ProductBadge\Persistence` (Template `transfer-and-propel`; Namespace live bestätigt).
+Prerequisite: the business module `Pyz\Zed\ProductBadge` (template `zed-module`) with `ProductBadgeFacadeInterface::createProductBadge(ProductBadgeTransfer): ProductBadgeTransfer` and the Propel table `spy_product_badge` with namespace `Orm\Zed\ProductBadge\Persistence` (template `transfer-and-propel`; namespace confirmed live).
 
-## Dateiliste (Zielpfad unter dem Projektroot)
+## File list (target path below the project root)
 
-| Datei | Zweck |
+| File | Purpose |
 |---|---|
-| `src/Pyz/Zed/ProductBadgeGui/ProductBadgeGuiConfig.php` | URL-Konstanten |
-| `src/Pyz/Zed/ProductBadgeGui/ProductBadgeGuiDependencyProvider.php` | stellt `FACADE_PRODUCT_BADGE` und `PROPEL_QUERY_PRODUCT_BADGE` bereit |
+| `src/Pyz/Zed/ProductBadgeGui/ProductBadgeGuiConfig.php` | URL constants |
+| `src/Pyz/Zed/ProductBadgeGui/ProductBadgeGuiDependencyProvider.php` | provides `FACADE_PRODUCT_BADGE` and `PROPEL_QUERY_PRODUCT_BADGE` |
 | `…/Communication/ProductBadgeGuiCommunicationFactory.php` | Table, Form, DataProvider, Facade, Query |
-| `…/Communication/Controller/ListController.php` | `indexAction` (Seite), `tableAction` (Ajax-JSON) |
-| `…/Communication/Controller/CreateController.php` | `indexAction` (Formular, Facade-Aufruf, Redirect); fängt `InvalidProductBadgeException` (unbekannter Badge-Key / unbekanntes Produkt), zeigt `addErrorMessage` und rendert das Formular erneut statt HTTP 500 |
-| `…/Communication/Table/ProductBadgeTable.php` | `AbstractTable` mit `configure()`/`prepareData()` |
-| `…/Communication/Form/ProductBadgeForm.php` | Formular (`data_class` = `ProductBadgeTransfer`) |
+| `…/Communication/Controller/ListController.php` | `indexAction` (page), `tableAction` (Ajax JSON) |
+| `…/Communication/Controller/CreateController.php` | `indexAction` (form, Facade call, redirect); catches `InvalidProductBadgeException` (unknown badge key / unknown product), shows `addErrorMessage` and renders the form again instead of HTTP 500 |
+| `…/Communication/Table/ProductBadgeTable.php` | `AbstractTable` with `configure()`/`prepareData()` |
+| `…/Communication/Form/ProductBadgeForm.php` | form (`data_class` = `ProductBadgeTransfer`) |
 | `…/Communication/Form/DataProvider/ProductBadgeFormDataProvider.php` | `getData()`, `getOptions()` |
-| `…/Communication/Plugin/Acl/ProductBadgeGuiAclInstallerPlugin.php` | Gruppe `product_badge_managers`, Rolle mit Regel `product-badge-gui/*/*` |
-| `…/Communication/navigation.xml` | Modul-Navigation (Unterseite "Create", `visible 0`) |
-| `…/Presentation/List/index.twig`, `…/Presentation/Create/index.twig` | Templates (`@ProductBadgeGui/List/index.twig`, `…/Create/index.twig`) |
-| `src/Pyz/Zed/Acl/AclDependencyProvider.php` | **neue Datei** (existiert im Release nicht), registriert das ACL-Plugin |
-| `src/Pyz/Zed/Translator/data/ProductBadgeGui/{de_DE,en_US}.csv` | Zed-Übersetzungen |
+| `…/Communication/Plugin/Acl/ProductBadgeGuiAclInstallerPlugin.php` | group `product_badge_managers`, role with rule `product-badge-gui/*/*` |
+| `…/Communication/navigation.xml` | module navigation (subpage "Create", `visible 0`) |
+| `…/Presentation/List/index.twig`, `…/Presentation/Create/index.twig` | templates (`@ProductBadgeGui/List/index.twig`, `…/Create/index.twig`) |
+| `src/Pyz/Zed/Acl/AclDependencyProvider.php` | **new file** (does not exist in the release), registers the ACL plugin |
+| `src/Pyz/Zed/Translator/data/ProductBadgeGui/{de_DE,en_US}.csv` | Zed translations |
 
-Bewusst nicht enthalten: Edit/Delete (der Facade-Vertrag hat nur `createProductBadge` und `getProductBadgeCollection`). Für Löschen das Muster aus `vendor/spryker/tax` (`DeleteRateController::indexAction()`/`confirmAction()`, Remove-Button per POST mit CSRF-Form, `generateRemoveButton()`) bzw. `vendor/spryker/api-key-gui` verwenden.
+Deliberately not included: edit/delete (the Facade contract only has `createProductBadge` and `getProductBadgeCollection`). For deletion use the pattern from `vendor/spryker/tax` (`DeleteRateController::indexAction()`/`confirmAction()`, remove button via POST with CSRF form, `generateRemoveButton()`) or `vendor/spryker/api-key-gui`.
 
-## Platzhalter / Anpassung
+## Placeholders / customization
 
-- `ProductBadgeGui`/`product-badge-gui` -> eigener Modulname (kebab-case in URL, `bundle` in `navigation.xml` und ACL-Regel).
-- Facade/Query kommen direkt vom Locator (`$container->getLocator()->productBadge()->facade()`); im Projekt ohne Bridge; Factory-Getter sind auf das Interface des Fremdmoduls typisiert (Bridges sind ein Core-Muster, siehe Referenz 02).
-- Die Tabelle fragt `SpyProductBadgeQuery` direkt ab (gängiger GUI-Kompromiss wie in `RateTable`/`ApiKeyTable`).
-- Feldtypen/Validierung im Formular anpassen (statt Integer-Feld für `fkProductAbstract` ggf. Autosuggest).
+- `ProductBadgeGui`/`product-badge-gui` -> your own module name (kebab-case in the URL, `bundle` in `navigation.xml` and the ACL rule).
+- Facade/Query come directly from the locator (`$container->getLocator()->productBadge()->facade()`); in the project without a bridge; Factory getters are typed to the foreign module's interface (bridges are a core pattern, see reference 02).
+- The table queries `SpyProductBadgeQuery` directly (common GUI compromise as in `RateTable`/`ApiKeyTable`).
+- Adjust field types/validation in the form (instead of an integer field for `fkProductAbstract`, possibly autosuggest).
 
-## Registrierung
+## Registration
 
-1. **Navigation (Ausschnitt, in bestehende Datei `config/Zed/navigation.xml` unter `<catalog><pages>` einfügen):**
+1. **Navigation (excerpt, insert into the existing file `config/Zed/navigation.xml` under `<catalog><pages>`):**
 
 ```xml
 <product-badge>
@@ -47,38 +47,38 @@ Bewusst nicht enthalten: Edit/Delete (der Facade-Vertrag hat nur `createProductB
 </product-badge>
 ```
 
-Grund: Pyz nutzt `BREADCRUMB_MERGE_STRATEGY` (`Pyz\Zed\ZedNavigation\ZedNavigationConfig`). Laut `BreadcrumbNavigationMergeStrategy` kommt die Menüstruktur aus `config/Zed/navigation.xml`; aus der Modul-`navigation.xml` werden nur die `pages` von Knoten mit **gleichem Schlüsselnamen (`product-badge`) und gleichem `bundle`** übernommen (hier die Unterseite `product-badge-create`). Live bestätigt: Nach `navigation:build-cache` steht "Product Badges" unter Catalog (Menü auf jeder Back-Office-Seite).
-2. **ACL:** `Pyz\Zed\Acl\AclDependencyProvider` (neu, Datei im Template) registriert `ProductBadgeGuiAclInstallerPlugin`. Existiert die Datei im Projekt bereits, nur den Plugin-Eintrag in `getAclInstallerPlugins()` ergänzen. Der Installer ist additiv/idempotent (`AclInstallerPlugin` in `Pyz\Zed\Installer\InstallerDependencyProvider`). Er legt Gruppe und Rolle an, **weist aber keinen User zu** -> User der Gruppe im Back Office (Menü "Users") zuordnen. Root-User (`root_group`, `*/*/*`) sehen die Seite ohne Zutun. Die Regel mit Wildcard auf Controller/Action deckt auch die Ajax-Action `list/table` ab.
-3. **Übersetzung:** CSVs liegen unter `src/Pyz/Zed/Translator/data/ProductBadgeGui/` (Ordnername frei, Dateiname `<locale>.csv`). Menü-Labels (`Product Badges`) stehen in derselben CSV, alternativ in `ZedNavigation/*.csv`. Nach Änderung Cache neu bauen.
-4. Modul-Klassen werden per Class-Resolver gefunden (kein weiterer Eintrag nötig); neue Transfers/Propel nur falls geändert.
+Reason: Pyz uses `BREADCRUMB_MERGE_STRATEGY` (`Pyz\Zed\ZedNavigation\ZedNavigationConfig`). According to `BreadcrumbNavigationMergeStrategy`, the menu structure comes from `config/Zed/navigation.xml`; from the module `navigation.xml` only the `pages` of nodes with the **same key name (`product-badge`) and same `bundle`** are taken over (here the subpage `product-badge-create`). Confirmed live: after `navigation:build-cache`, "Product Badges" appears under Catalog (menu on every Back Office page).
+2. **ACL:** `Pyz\Zed\Acl\AclDependencyProvider` (new, file in the template) registers `ProductBadgeGuiAclInstallerPlugin`. If the file already exists in the project, only add the plugin entry to `getAclInstallerPlugins()`. The installer is additive/idempotent (`AclInstallerPlugin` in `Pyz\Zed\Installer\InstallerDependencyProvider`). It creates the group and role, **but does not assign any user** -> assign users to the group in the Back Office (menu "Users"). Root users (`root_group`, `*/*/*`) see the page without further action. The rule with a wildcard on controller/action also covers the Ajax action `list/table`.
+3. **Translation:** CSVs are located under `src/Pyz/Zed/Translator/data/ProductBadgeGui/` (folder name free, file name `<locale>.csv`). Menu labels (`Product Badges`) are in the same CSV, alternatively in `ZedNavigation/*.csv`. Rebuild the cache after changes.
+4. Module classes are found via the class resolver (no further entry needed); new Transfers/Propel only if changed.
 
-## Befehle danach `[live verifiziert (202610.0)]`
+## Commands afterwards `[live verified (202610.0)]`
 
-Alle fünf Befehle liefen im Shop 202610.0 mit Exit 0 (`setup:init-db` installiert die ACL-Gruppe `product_badge_managers`, Rolle `product_badge_manager_role`, Regel `product-badge-gui/*/*`, idempotent). Beim Router-Cache zusätzlich `docker/sdk cli console router:cache:warm-up:backoffice`.
+All five commands ran in shop 202610.0 with exit 0 (`setup:init-db` installs the ACL group `product_badge_managers`, role `product_badge_manager_role`, rule `product-badge-gui/*/*`, idempotent). For the router cache additionally `docker/sdk cli console router:cache:warm-up:backoffice`.
 
 ```bash
-docker/sdk cli console transfer:generate        # falls ProductBadge-Transfers neu
-docker/sdk cli console propel:install           # falls spy_product_badge neu (siehe Template transfer-and-propel)
+docker/sdk cli console transfer:generate        # if ProductBadge transfers are new
+docker/sdk cli console propel:install           # if spy_product_badge is new (see template transfer-and-propel)
 docker/sdk cli console navigation:build-cache
 docker/sdk cli console translator:generate-cache
-docker/sdk cli console setup:init-db            # führt u. a. die ACL-Installer-Plugins aus (idempotent)
+docker/sdk cli console setup:init-db            # runs, among others, the ACL installer plugins (idempotent)
 ```
 
-Test: Back Office -> Catalog -> Product Badges; als Nicht-Root-User mit Gruppe `product_badge_managers` prüfen.
+Test: Back Office -> Catalog -> Product Badges; check as a non-root user with group `product_badge_managers`.
 
-Live per curl geprüft (Demo-User `admin@spryker.com` / `change123`; das Login-Formular `auth` postet nach **`/login_check`** mit Feld `auth[_token]` aus dem Login-HTML, Cookie-Jar mitführen):
-- `GET /product-badge-gui/list` `200`, `/product-badge-gui/list/table` `200` mit `{"draw":1,"recordsTotal":2,"data":[[2,5,"sale","Sale"],[1,4,"new","New!"]],...}`, `/product-badge-gui/create` `200`.
-- `POST /product-badge-gui/create` (Felder `product_badge[fkProductAbstract|badgeKey|label|_token]`) mit gültigen Werten -> `302` auf `/product-badge-gui/list`, Zeile in `spy_product_badge`, nach dem Worker-Lauf Redis-Key `kv:product_badge:<id>`. Mit `badgeKey=invalidkey` -> `200`, Formular erneut mit "invalidkey" is not allowed.
-- ACL: Ohne Login `302` auf `/security-gui/login`. Ein per SQL angelegter User in Gruppe `product_badge_managers` erhält `200` auf allen drei URLs, auf fremden Modulen (`/product-category-filter-gui/`) `302` auf `/acl/index/denied`; ein User ohne Gruppe wird auf allen vier URLs auf `/acl/index/denied` umgeleitet.
+Checked live via curl (demo user `admin@spryker.com` / `change123`; the login form `auth` posts to **`/login_check`** with field `auth[_token]` from the login HTML, keep a cookie jar):
+- `GET /product-badge-gui/list` `200`, `/product-badge-gui/list/table` `200` with `{"draw":1,"recordsTotal":2,"data":[[2,5,"sale","Sale"],[1,4,"new","New!"]],...}`, `/product-badge-gui/create` `200`.
+- `POST /product-badge-gui/create` (fields `product_badge[fkProductAbstract|badgeKey|label|_token]`) with valid values -> `302` to `/product-badge-gui/list`, row in `spy_product_badge`, after the worker run Redis key `kv:product_badge:<id>`. With `badgeKey=invalidkey` -> `200`, form again with "invalidkey" is not allowed.
+- ACL: without login `302` to `/security-gui/login`. A user created via SQL in group `product_badge_managers` gets `200` on all three URLs, on foreign modules (`/product-category-filter-gui/`) `302` to `/acl/index/denied`; a user without a group is redirected to `/acl/index/denied` on all four URLs.
 
-## Vorbild-Klassen / Quelle
+## Model classes / source
 
-- `vendor/spryker/api-key-gui/src/Spryker/Zed/ApiKeyGui/` (Controller `ListController`/`CreateController`, `ApiKeyTable`, `ApiKeyGuiDependencyProvider::addApiKeyPropelQuery()`, Factory, Presentation, `navigation.xml`)
+- `vendor/spryker/api-key-gui/src/Spryker/Zed/ApiKeyGui/` (controllers `ListController`/`CreateController`, `ApiKeyTable`, `ApiKeyGuiDependencyProvider::addApiKeyPropelQuery()`, Factory, Presentation, `navigation.xml`)
 - `vendor/spryker/tax/src/Spryker/Zed/Tax/Communication/{Table/RateTable.php,Form/TaxRateForm.php,Form/DataProvider/TaxRateFormDataProvider.php}` (`setUrl`, `setDefaultSortColumnIndex`, `addRawColumn`)
-- `vendor/spryker/customer-access-gui` und `src/Pyz/Zed/CustomerAccessGui/` (Form + DataProvider + Pyz-Template)
+- `vendor/spryker/customer-access-gui` and `src/Pyz/Zed/CustomerAccessGui/` (Form + DataProvider + Pyz template)
 - `vendor/spryker/acl-extension/…/AclInstallerPluginInterface.php`, `vendor/spryker/acl/src/Spryker/Zed/Acl/Business/Model/Installer.php`
 - `src/Pyz/Zed/ZedNavigation/ZedNavigationConfig.php`, `config/Zed/navigation.xml`
 
-## Verifikationsstatus
+## Verification status
 
-Klassen, Namespaces, Methodensignaturen (`AbstractController`, `AbstractTable`, `TableConfiguration::setUrl/setHeader/setSearchable/setSortable/setDefaultSortColumnIndex/setDefaultSortDirection/addRawColumn`, `AbstractType`, `AbstractCommunicationFactory::getFormFactory/getProvidedDependency`, `AclInstallerPluginInterface`, Transfer-Setter `Role::setAclGroup/addAclRule`, `AclConstants`) gegen `vendor/` geprüft. Durchgespielt im Shop 202610.0 (Seite, Tabelle, Formular, Navigation, ACL; `code:sniff:style` Exit 0, PHPStan Level 6 ohne Befund); abhängig von den Templates `zed-module` und `transfer-and-propel`. Der Navigations-Merge (`BREADCRUMB_MERGE_STRATEGY`) ist live bestätigt. `[live verifiziert (202610.0)]` Symfony-Constraints mit Named Arguments (`new Length(max: 255)`), da die Array-Form im installierten Validator als deprecated markiert ist (Core-Code nutzt noch die Array-Form).
+Classes, namespaces, method signatures (`AbstractController`, `AbstractTable`, `TableConfiguration::setUrl/setHeader/setSearchable/setSortable/setDefaultSortColumnIndex/setDefaultSortDirection/addRawColumn`, `AbstractType`, `AbstractCommunicationFactory::getFormFactory/getProvidedDependency`, `AclInstallerPluginInterface`, Transfer setters `Role::setAclGroup/addAclRule`, `AclConstants`) checked against `vendor/`. Walked through in shop 202610.0 (page, table, form, navigation, ACL; `code:sniff:style` exit 0, PHPStan level 6 without findings); depends on the templates `zed-module` and `transfer-and-propel`. The navigation merge (`BREADCRUMB_MERGE_STRATEGY`) is confirmed live. `[live verified (202610.0)]` Symfony constraints with named arguments (`new Length(max: 255)`), because the array form is marked as deprecated in the installed Validator (core code still uses the array form).

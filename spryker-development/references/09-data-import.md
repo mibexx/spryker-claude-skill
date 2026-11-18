@@ -1,89 +1,89 @@
-# Data Import (Recherche T-09)
+# Data Import
 
-> Status: Release 202610.0 (spryker/data-import 1.34.0, data-import-extension 1.2.0). Code gegen `vendor/` und `src/Pyz` verifiziert `[code-verifiziert, Doku nicht abgeglichen]`; Doku-Seiten teils ausgewertet, mehrere sind veraltet (siehe Fallstricke). Lesende Befehle (`data:import --help`, `data:import:dump`) wurden live ausgeführt, **kein Import wurde ausgeführt**. Der Beispiel-Importer (Template) ist nicht gelaufen; er wurde in einer Sandbox mit php -l, phpcs und phpstan geprüft (202610.0).
+> Status: Release 202610.0 (spryker/data-import 1.34.0, data-import-extension 1.2.0). Code verified against `vendor/` and `src/Pyz` `[code-verified, docs not cross-checked]`; docs pages partly evaluated, several are outdated (see pitfalls). Read-only commands (`data:import --help`, `data:import:dump`) were executed live, **no import was executed**. The example importer (template) has not been run; it was checked in a sandbox with php -l, phpcs and phpstan (202610.0).
 
-## Zweck
-Stammdaten (CSV) per Konsole in die DB laden: Aufbau eines Importers, YAML-Steuerung pro Region/Store, eigenen Importer anlegen und registrieren, Reihenfolge, Queue-Importer, Performance. Publish/Sync der importierten Daten: [07-publish-sync](07-publish-sync.md). Konsolen allgemein: [22-console-cron-queue](22-console-cron-queue.md).
+## Purpose
+Loading master data (CSV) into the DB via the console: structure of an importer, YAML control per region/store, creating and registering a custom importer, order, queue importer, performance. Publish/Sync of the imported data: [07-publish-sync](07-publish-sync.md). Consoles in general: [22-console-cron-queue](22-console-cron-queue.md).
 
-## Konzepte
+## Concepts
 
-**Pipeline** Reader -> DataSetStepBroker (Steps) -> Writer/Persistenz, gebaut in einer `*DataImportBusinessFactory` (Basis `Spryker\Zed\DataImport\Business\DataImportBusinessFactory`).
+**Pipeline** Reader -> DataSetStepBroker (steps) -> Writer/persistence, built in a `*DataImportBusinessFactory` (base `Spryker\Zed\DataImport\Business\DataImportBusinessFactory`).
 
-| Baustein | Klasse (unter `vendor/spryker/data-import/src/Spryker/Zed/DataImport/`) | Rolle |
+| Building block | Class (under `vendor/spryker/data-import/src/Spryker/Zed/DataImport/`) | Role |
 |---|---|---|
-| Importer | `Business/Model/DataImporter.php` | iteriert den Reader, führt Steps je DataSet aus, sammelt Fehler im `DataImporterReportTransfer` (max. `getDefaultAmountOfErrors()`, Default 50) |
-| Importer mit Writer | `Business/Model/DataImporterDataSetWriterAware.php` | zusätzlich `DataSetWriterPluginInterface::write()` je DataSet und `flush()` am Ende (Batch) |
-| Queue-Importer | `Business/DataImporter/Queue/QueueDataImporter.php` | liest aus Queue statt CSV |
-| Reader | `Business/Model/DataReader/CsvReader/CsvReader.php`; `Business/DataReader/CsvReader/CsvAdapterReader.php` (Flysystem, bei `DataImportConstants::OTHER_SOURCE_ENABLED`) | je CSV-Zeile ein `DataSetInterface`, Schlüssel = Header |
-| DataSet | `Business/Model/DataSet/DataSet.php` (ArrayObject) | Zugriff auf fehlenden Schlüssel wirft `DataKeyNotFoundInDataSetException`; Importer hängt `CONTEXT` an |
-| Step | `DataImportStepInterface::execute(DataSetInterface $dataSet)` | eine Transformations- oder Schreibstufe; optional `DataImportStepBeforeExecuteInterface`, `DataImportStepAfterExecuteInterface` |
-| Step Broker | `DataSetStepBroker`, `DataSetStepBrokerTransactionAware` (Propel-Transaktion, Bulk, Rollback, leert Instance-Pools), `DataSetStepBrokerElasticBatchTransactionAware` | Steps in `addStep()`-Reihenfolge |
-| Standard-Steps | `AddLocalesStep`, `AddStoresStep`, `LocalizedAttributesExtractorStep`, `RenameDataSetKeysStep`, `PublishAwareStep`, `TouchAwareStep` | über `create*Step()` der Basis-Factory |
-| Writer-Plugins | `vendor/spryker/data-import-extension/.../Dependency/Plugin/`: `DataSetWriterPluginInterface` (`write`, `flush`), `DataSetWriterPluginApplicableAwareInterface`, `DataSetItemWriterPluginInterface` | Batch-Schreiben (Pyz: `ProductAbstractPropelWriterPlugin` u. a.) |
-| Publish | `PublishAwareStep` + `DataImporterPublisher` | sammelt Events, löst sie nach dem Import gebündelt aus |
+| Importer | `Business/Model/DataImporter.php` | iterates over the reader, executes steps per DataSet, collects errors in the `DataImporterReportTransfer` (max. `getDefaultAmountOfErrors()`, default 50) |
+| Importer with writer | `Business/Model/DataImporterDataSetWriterAware.php` | additionally `DataSetWriterPluginInterface::write()` per DataSet and `flush()` at the end (batch) |
+| Queue importer | `Business/DataImporter/Queue/QueueDataImporter.php` | reads from a queue instead of CSV |
+| Reader | `Business/Model/DataReader/CsvReader/CsvReader.php`; `Business/DataReader/CsvReader/CsvAdapterReader.php` (Flysystem, with `DataImportConstants::OTHER_SOURCE_ENABLED`) | one `DataSetInterface` per CSV row, keys = header |
+| DataSet | `Business/Model/DataSet/DataSet.php` (ArrayObject) | accessing a missing key throws `DataKeyNotFoundInDataSetException`; importer attaches `CONTEXT` |
+| Step | `DataImportStepInterface::execute(DataSetInterface $dataSet)` | one transformation or write stage; optionally `DataImportStepBeforeExecuteInterface`, `DataImportStepAfterExecuteInterface` |
+| Step broker | `DataSetStepBroker`, `DataSetStepBrokerTransactionAware` (Propel transaction, bulk, rollback, clears instance pools), `DataSetStepBrokerElasticBatchTransactionAware` | steps in `addStep()` order |
+| Standard steps | `AddLocalesStep`, `AddStoresStep`, `LocalizedAttributesExtractorStep`, `RenameDataSetKeysStep`, `PublishAwareStep`, `TouchAwareStep` | via `create*Step()` of the base factory |
+| Writer plugins | `vendor/spryker/data-import-extension/.../Dependency/Plugin/`: `DataSetWriterPluginInterface` (`write`, `flush`), `DataSetWriterPluginApplicableAwareInterface`, `DataSetItemWriterPluginInterface` | batch writing (Pyz: `ProductAbstractPropelWriterPlugin` among others) |
+| Publish | `PublishAwareStep` + `DataImporterPublisher` | collects events, triggers them in bulk after the import |
 
-**Zwei Wege, einen Importer einzuhängen** (beide existieren im Release):
-1. **Plugin im Modul** (Standard, für neue Importer): `<X>DataImportPlugin implements DataImportPluginInterface` (`import()`, `getImportType()`), registriert in `Pyz\Zed\DataImport\DataImportDependencyProvider::getDataImporterPlugins()`. Vorbild `Spryker\Zed\StockAddressDataImport\...\StockAddressDataImportPlugin`.
-2. **Pyz-Factory** `Pyz\Zed\DataImport\Business\DataImportBusinessFactory::getDataImporterByType()` (großer `switch` über `DataImportConfig::IMPORT_TYPE_*`, z. B. `currency`, `glossary`, `product-abstract`): Bestandsweg des Demo-Shops, für neue Importer nicht nachbauen.
-`DataImporterCollectionCollector` kombiniert pro YAML-Action beide Quellen.
+**Two ways to hook in an importer** (both exist in the release):
+1. **Plugin in the module** (standard, for new importers): `<X>DataImportPlugin implements DataImportPluginInterface` (`import()`, `getImportType()`), registered in `Pyz\Zed\DataImport\DataImportDependencyProvider::getDataImporterPlugins()`. Model: `Spryker\Zed\StockAddressDataImport\...\StockAddressDataImportPlugin`.
+2. **Pyz factory** `Pyz\Zed\DataImport\Business\DataImportBusinessFactory::getDataImporterByType()` (large `switch` over `DataImportConfig::IMPORT_TYPE_*`, e.g. `currency`, `glossary`, `product-abstract`): legacy path of the demo shop, do not replicate it for new importers.
+`DataImporterCollectionCollector` combines both sources per YAML action.
 
-**Verzeichnisse `data/import/`**: `common/common/` (store-/regionsunabhängige CSV), `common/EU|US/` (regionsspezifisch: `store.csv`, `store_context.csv`), `common/DE|AT|US/` (storespezifisch: `currency_store.csv`, `product_price.csv`, ...), `common/*_import_config_{EU,US}.yml` (thematische YAML-Gruppen), `local/{full,store}_{EU,US}.yml` (Einstieg lokal), `production/full_{EU,US}.yml`. `common/{DE,AT,US}/<STORE>.yml` werden von keinem Install-Recipe referenziert `[Annahme]`: nur per `--config` nutzbar.
+**Directories `data/import/`**: `common/common/` (store/region-independent CSV), `common/EU|US/` (region-specific: `store.csv`, `store_context.csv`), `common/DE|AT|US/` (store-specific: `currency_store.csv`, `product_price.csv`, ...), `common/*_import_config_{EU,US}.yml` (thematic YAML groups), `local/{full,store}_{EU,US}.yml` (local entry point), `production/full_{EU,US}.yml`. `common/{DE,AT,US}/<STORE>.yml` are not referenced by any install recipe `[Assumption]`: only usable via `--config`.
 
-**YAML-Format** (`DataImportConfigurationActionTransfer`):
+**YAML format** (`DataImportConfigurationActionTransfer`):
 ```yaml
 version: 0
 actions:
   - data_entity: currency            # = getImportType()
-    source: data/import/common/common/currency.csv   # relativ zum Projektroot
-  - data_entity: currency-store      # derselbe Typ mehrfach mit anderer Quelle möglich
+    source: data/import/common/common/currency.csv   # relative to the project root
+  - data_entity: currency-store      # the same type can appear multiple times with a different source
     source: data/import/common/DE/currency_store.csv
 ```
-Weitere Action-Felder: `file_system`, `context`. Parser liest nur das erste YAML-Dokument, unbekannte Schlüssel werden ignoriert. `FileResolver` probiert `source` relativ zum CWD (Projektroot im Container), dann `<data/import/>/<source>`; sonst `FileResolverFileNotFoundException` mit geprüften Pfaden.
+Further action fields: `file_system`, `context`. The parser only reads the first YAML document, unknown keys are ignored. `FileResolver` tries `source` relative to the CWD (project root in the container), then `<data/import/>/<source>`; otherwise `FileResolverFileNotFoundException` with the checked paths.
 
-**Default-Konfiguration:** `Pyz\Zed\DataImport\DataImportConfig::getDefaultYamlConfigPath()` = `data/import/local/full_<APPLICATION_REGION>.yml` (Fallback `EU`); gilt ohne `--config` auch für `data:import:<typ>` und `data:import:dump`. Install-Recipes: `config/install/docker.yml` -> `data:import --config=data/import/local/full_${SPRYKER_REGION}.yml`.
+**Default configuration:** `Pyz\Zed\DataImport\DataImportConfig::getDefaultYamlConfigPath()` = `data/import/local/full_<APPLICATION_REGION>.yml` (fallback `EU`); without `--config` it also applies to `data:import:<type>` and `data:import:dump`. Install recipes: `config/install/docker.yml` -> `data:import --config=data/import/local/full_${SPRYKER_REGION}.yml`.
 
-**Reihenfolge:** mit YAML exakt die `actions` von oben nach unten. `data:import <typ>` filtert die Actions auf `data_entity === <typ>` und führt alle Treffer aus; kein Treffer -> Meldung `Requested import type "X" was not found in <config>.` bei Erfolgsstatus. Abhängigkeiten im Demo-Shop (aus `full_EU.yml`): `store`, `currency`, `currency-store`, `country-store`, `locale-store`, `customer`, `glossary`, `tax`, `shipment`, `stock`, `stock-address`, ... -> Catalog (`category`, `product-abstract`, `product-concrete`, `product-price`, ...) -> Merchandising -> Navigation -> Content -> B2B. Concrete setzt Abstract voraus, `*-store` setzt `store` voraus, Preise setzen Währung/Store voraus.
+**Order:** with YAML exactly the `actions` from top to bottom. `data:import <type>` filters the actions to `data_entity === <type>` and runs all matches; no match -> message `Requested import type "X" was not found in <config>.` with success status. Dependencies in the demo shop (from `full_EU.yml`): `store`, `currency`, `currency-store`, `country-store`, `locale-store`, `customer`, `glossary`, `tax`, `shipment`, `stock`, `stock-address`, ... -> Catalog (`category`, `product-abstract`, `product-concrete`, `product-price`, ...) -> Merchandising -> Navigation -> Content -> B2B. Concrete requires abstract, `*-store` requires `store`, prices require currency/store.
 
-**Queue-Importer** (Infrastruktur vorhanden, im Projekt ungenutzt): zweistufig CSV -> Queue (`QueueWriter`, `AbstractQueueWriterPlugin`, Gruppe `QUEUE_WRITERS`) und Queue -> DB (`QueueDataImporter`, Gruppe `QUEUE_READERS`, parallelisierbar). Chunk-Größen `DATA_IMPORT:QUEUE_READER_CHUNK_SIZE` / `..._WRITER_CHUNK_SIZE` (Default 100). `DataImportFacade::writeDataSetItemsToQueue(string $queueName, array $dataSetItems)`. `--group=QUEUE_WRITERS` ist nicht mit einem Importer-Argument kombinierbar; `QUEUE_READERS` nicht empfohlen (Race Conditions). Aufbau wäre Eigenarbeit, Queue-Betrieb: [22-console-cron-queue](22-console-cron-queue.md).
+**Queue importer** (infrastructure present, unused in the project): two-stage CSV -> queue (`QueueWriter`, `AbstractQueueWriterPlugin`, group `QUEUE_WRITERS`) and queue -> DB (`QueueDataImporter`, group `QUEUE_READERS`, parallelizable). Chunk sizes `DATA_IMPORT:QUEUE_READER_CHUNK_SIZE` / `..._WRITER_CHUNK_SIZE` (default 100). `DataImportFacade::writeDataSetItemsToQueue(string $queueName, array $dataSetItems)`. `--group=QUEUE_WRITERS` cannot be combined with an importer argument; `QUEUE_READERS` not recommended (race conditions). Setting it up would be custom work; queue operation: [22-console-cron-queue](22-console-cron-queue.md).
 
-## Anleitung
+## Instructions
 
-**Eigenen Importer anlegen (Plugin-Weg)** - fertiges Template: [templates/data-import-step](../templates/data-import-step/README.md).
-1. Modul `Pyz\Zed\<X>DataImport`: Config (extends `Spryker\Zed\DataImport\DataImportConfig`, Konstante `IMPORT_TYPE_*` kebab-case, Methode mit `buildImporterConfiguration($file, $type)`), leerer DependencyProvider (extends `DataImportDependencyProvider`, nötig für die Basis-Factory), BusinessFactory (extends `DataImportBusinessFactory`), Facade, Plugin.
-2. Factory: `getCsvDataImporterFromConfig($config)` -> `createTransactionAwareDataSetStepBroker($bulkSize = null)` -> `addStep(...)` je Step (Lookups zuerst, Writer zuletzt) -> `addDataSetStepBroker()`.
+**Creating a custom importer (plugin path)** - ready-made template: [templates/data-import-step](../templates/data-import-step/README.md).
+1. Module `Pyz\Zed\<X>DataImport`: Config (extends `Spryker\Zed\DataImport\DataImportConfig`, constant `IMPORT_TYPE_*` in kebab-case, method with `buildImporterConfiguration($file, $type)`), empty DependencyProvider (extends `DataImportDependencyProvider`, required for the base factory), BusinessFactory (extends `DataImportBusinessFactory`), Facade, plugin.
+2. Factory: `getCsvDataImporterFromConfig($config)` -> `createTransactionAwareDataSetStepBroker($bulkSize = null)` -> `addStep(...)` per step (lookups first, writer last) -> `addDataSetStepBroker()`.
 3. Facade: `import<X>(?DataImporterConfigurationTransfer)` -> `getFactory()->get<X>DataImporter($transfer)->import($transfer)`.
-4. Plugin: `import()` delegiert an die Facade, `getImportType()` liefert die Konstante.
-5. Registrieren: Plugin in `DataImportDependencyProvider::getDataImporterPlugins()`; optional Konsole `new DataImportConsole(DataImportConsole::DEFAULT_NAME . static::COMMAND_SEPARATOR . <Typ>)` in `Pyz\Zed\Console\ConsoleDependencyProvider::getConsoleCommands()` (macht `data:import:<typ>` verfügbar; ohne Eintrag geht `data:import <typ>`). Hinweis: `StockAddress` ist im Release **nicht** als Kurzbefehl registriert, läuft aber per YAML.
-6. `data_entity`-Eintrag in `data/import/local/full_*.yml` (und `production/full_*.yml`, `common/*_import_config_*.yml`) an der richtigen Stelle der Reihenfolge. Ohne Eintrag läuft der Importer beim Full-Import nicht.
-7. Nur für den Legacy-Full-Import ohne YAML: `Pyz\Zed\DataImport\DataImportConfig::getFullImportTypes()` ergänzen (Core: `[]`; Pyz ergänzt `StockAddress`). Bei nicht leerer Liste führt der Legacy-Lauf nur diese Typen aus.
-8. `transfer:generate` (falls Transfers), `data:import:dump`, Testlauf mit `-t`.
+4. Plugin: `import()` delegates to the Facade, `getImportType()` returns the constant.
+5. Register: plugin in `DataImportDependencyProvider::getDataImporterPlugins()`; optionally the console `new DataImportConsole(DataImportConsole::DEFAULT_NAME . static::COMMAND_SEPARATOR . <Type>)` in `Pyz\Zed\Console\ConsoleDependencyProvider::getConsoleCommands()` (makes `data:import:<type>` available; without the entry `data:import <type>` works). Note: `StockAddress` is **not** registered as a short command in the release, but runs via YAML.
+6. `data_entity` entry in `data/import/local/full_*.yml` (and `production/full_*.yml`, `common/*_import_config_*.yml`) at the right position in the order. Without the entry the importer does not run during the full import.
+7. Only for the legacy full import without YAML: extend `Pyz\Zed\DataImport\DataImportConfig::getFullImportTypes()` (core: `[]`; Pyz adds `StockAddress`). With a non-empty list the legacy run only executes these types.
+8. `transfer:generate` (if transfers), `data:import:dump`, test run with `-t`.
 
 **Performance**
-- `createTransactionAwareDataSetStepBroker($bulkSize)`: Commit alle `$bulkSize` DataSets, Instance-Pools werden geleert (alle 1000, `MEMORY_CLEAR_THRESHOLD`). Pyz-Vorbild `GlossaryWriterStep::BULK_SIZE`.
-- Batch-Writer (`DataImporterDataSetWriterAware` + `DataSetWriterPluginInterface`) statt Einzel-ORM; Lookups (Key -> ID) einmal laden/cachen, keine schweren Facade-Aufrufe pro Zeile; bei Massendaten PDO/CTE statt Propel.
-- Events aus: Hook-Plugins `DataImportEventBehaviorPlugin` (before, `disableEvent()`) und `DataImportPublisherPlugin` (after, `publish()`), beide im Pyz-`DataImportDependencyProvider` (`getDataImportBeforeImportHookPlugins()` / `...AfterImportHookPlugins()`). `DataImporterPublisher` bündelt Events (`PUBLISHER_TRIGGER_CHUNK_SIZE`, Default 20000).
-- Bulk-Modus: `DataImportConstants::IS_BULK_MODE_ENABLED`, `BULK_MODE_GRADUALITY_FACTOR` (5), `BULK_MODE_MEMORY_THRESHOLD_PERCENT` (30); in `config/Shared/` nicht gesetzt (Default `false`).
-- Lesebatch Pyz: `getReadCollectionBatchSize()` = 500. `--progress-bar`/`-pb` (ab 1.32.0) nur zur Diagnose (Debug-Overhead).
+- `createTransactionAwareDataSetStepBroker($bulkSize)`: commit every `$bulkSize` DataSets, instance pools are cleared (every 1000, `MEMORY_CLEAR_THRESHOLD`). Pyz model: `GlossaryWriterStep::BULK_SIZE`.
+- Batch writer (`DataImporterDataSetWriterAware` + `DataSetWriterPluginInterface`) instead of single ORM writes; load/cache lookups (key -> ID) once, no heavy Facade calls per row; for mass data PDO/CTE instead of Propel.
+- Events off: hook plugins `DataImportEventBehaviorPlugin` (before, `disableEvent()`) and `DataImportPublisherPlugin` (after, `publish()`), both in the Pyz `DataImportDependencyProvider` (`getDataImportBeforeImportHookPlugins()` / `...AfterImportHookPlugins()`). `DataImporterPublisher` bundles events (`PUBLISHER_TRIGGER_CHUNK_SIZE`, default 20000).
+- Bulk mode: `DataImportConstants::IS_BULK_MODE_ENABLED`, `BULK_MODE_GRADUALITY_FACTOR` (5), `BULK_MODE_MEMORY_THRESHOLD_PERCENT` (30); not set in `config/Shared/` (default `false`).
+- Read batch Pyz: `getReadCollectionBatchSize()` = 500. `--progress-bar`/`-pb` (from 1.32.0) only for diagnostics (debug overhead).
 
-**Konsole** `[live verifiziert (202610.0)]`: `data:import`, `data:import:<typ>`, `data:import:dump`, `--config` (z. B. `content_management_import_config_EU.yml`, 16 Actions), `-o/-l` und `-t` wurden ausgeführt (EU; Imports sind idempotente Upserts, Volllauf `full_EU.yml` siehe Protokoll `live-verification.md`); Prefix `docker/sdk cli console`:
+**Console** `[live verified (202610.0)]`: `data:import`, `data:import:<type>`, `data:import:dump`, `--config` (e.g. `content_management_import_config_EU.yml`, 16 actions), `-o/-l` and `-t` were executed (EU; imports are idempotent upserts, full run of `full_EU.yml` verified live in release 202610.0); prefix `docker/sdk cli console`:
 
-| Befehl | Wirkung |
+| Command | Effect |
 |---|---|
-| `data:import` | Full-Import mit Default-YAML |
-| `data:import --config=data/import/local/full_US.yml` (`-c`) | beliebige YAML |
-| `data:import <typ>` / `data:import:<typ>` | nur Actions dieses `data_entity` |
-| `data:import:dump` | listet Importer **der Default-YAML** (nicht enthaltene wie `combined-product-*` fehlen) |
-| `-o <n> -l <n>` | Offset/Limit |
-| `-t` / `--throw-exception` | Abbruch beim ersten Fehler mit Stacktrace |
-| `-d -e -s -r` | CSV-Delimiter, Enclosure, Escape, `--has-header=0` |
-| `-g <GRUPPE>` | Import-Gruppe (nur ohne Importer-Argument); `-g QUEUE_WRITERS` endet im Projekt mit `InvalidImportGroupException` (Exit 255), weil kein Importer in der Gruppe liegt |
-| `-f <csv>` | **wirkungslos**, sowohl mit `--config` als auch mit Importer-Argument und Default-YAML: `source` aus der YAML gewinnt `[live verifiziert (202610.0)]` ("Import source:" zeigt die YAML-Quelle). Für eine andere CSV die YAML ändern oder eigene YAML mit `--config` |
+| `data:import` | full import with the default YAML |
+| `data:import --config=data/import/local/full_US.yml` (`-c`) | any YAML |
+| `data:import <type>` / `data:import:<type>` | only actions of this `data_entity` |
+| `data:import:dump` | lists importers **of the default YAML** (those not included, such as `combined-product-*`, are missing) |
+| `-o <n> -l <n>` | offset/limit |
+| `-t` / `--throw-exception` | abort on the first error with stack trace |
+| `-d -e -s -r` | CSV delimiter, enclosure, escape, `--has-header=0` |
+| `-g <GROUP>` | import group (only without importer argument); `-g QUEUE_WRITERS` ends in the project with `InvalidImportGroupException` (exit 255), because no importer is in the group |
+| `-f <csv>` | **has no effect**, both with `--config` and with importer argument and default YAML: `source` from the YAML wins `[live verified (202610.0)]` ("Import source:" shows the YAML source). For a different CSV, change the YAML or use your own YAML with `--config` |
 
-Exit-Code `1`, wenn ein Teilimporter fehlschlägt (Code `DataImportConsole`, Install-Recipes brechen dann ab). Eine fehlende CSV-Datei dagegen wirft `FileResolverFileNotFoundException` (Exit 255, mit und ohne `-t`, `live verifiziert`).
+Exit code `1` if a sub-importer fails (code `DataImportConsole`, install recipes then abort). A missing CSV file, in contrast, throws `FileResolverFileNotFoundException` (exit 255, with and without `-t`, `live verified`).
 
-## Beispiele
+## Examples
 
-Vollständiges lauffähig gedachtes Modul (Config, Interface, Steps, Plugin, CSV, YAML): [templates/data-import-step](../templates/data-import-step/README.md). Kern-Auszüge, am Core-Importer `StockAddressDataImport` und am Template verifiziert:
+Complete module intended to be runnable (Config, interface, steps, plugin, CSV, YAML): [templates/data-import-step](../templates/data-import-step/README.md). Core excerpts, verified against the core importer `StockAddressDataImport` and the template:
 
 ```php
 // src/Pyz/Zed/ProductBadgeDataImport/Business/ProductBadgeDataImportBusinessFactory.php
@@ -95,7 +95,7 @@ public function getProductBadgeDataImporter(?DataImporterConfigurationTransfer $
 
     $dataSetStepBroker = $this->createTransactionAwareDataSetStepBroker();
     $dataSetStepBroker->addStep($this->createAbstractSkuToIdProductAbstractStep());   // Lookup
-    $dataSetStepBroker->addStep($this->createProductBadgeWriterStep());               // Writer zuletzt
+    $dataSetStepBroker->addStep($this->createProductBadgeWriterStep());               // writer last
 
     $dataImporter->addDataSetStepBroker($dataSetStepBroker);
 
@@ -104,26 +104,26 @@ public function getProductBadgeDataImporter(?DataImporterConfigurationTransfer $
 ```
 
 ```php
-// Writer-Step: idempotent, Pflichtspalten validieren, sprechende Exception
+// Writer step: idempotent, validate mandatory columns, descriptive exception
 $productBadgeEntity = SpyProductBadgeQuery::create()
     ->filterByFkProductAbstract($dataSet[ProductBadgeDataSetInterface::ID_PRODUCT_ABSTRACT])
     ->filterByBadgeKey($dataSet[ProductBadgeDataSetInterface::COLUMN_BADGE_KEY])
     ->findOneOrCreate();
 $productBadgeEntity->setLabel($dataSet[ProductBadgeDataSetInterface::COLUMN_LABEL])->save();
 
-// Writer-Step erbt PublishAwareStep: Entity-Events sind beim Import aus (DataImportEventBehaviorPlugin),
-// das Publish-Event wird gesammelt und nach dem Import vom DataImportPublisherPlugin ausgelöst
+// Writer step extends PublishAwareStep: entity events are off during import (DataImportEventBehaviorPlugin),
+// the publish event is collected and triggered after the import by the DataImportPublisherPlugin
 $this->addPublishEvents(ProductBadgeStorageConfig::PRODUCT_BADGE_PUBLISH, $dataSet[ProductBadgeDataSetInterface::ID_PRODUCT_ABSTRACT]);
 ```
-Der Template-Writer `class ProductBadgeWriterStep extends PublishAwareStep implements DataImportStepInterface` ist **nicht optional**: ohne `addPublishEvents()` kommen Daten einer Entity mit Event-/Publish-Behavior beim Import nie in Storage.
+The template writer `class ProductBadgeWriterStep extends PublishAwareStep implements DataImportStepInterface` is **not optional**: without `addPublishEvents()`, data of an entity with event/publish behavior never reaches storage during import.
 
 ```yaml
-# data/import/local/full_EU.yml (nach product-abstract)
+# data/import/local/full_EU.yml (after product-abstract)
   - data_entity: product-badge
     source: data/import/common/common/product_badge.csv
 ```
 
-Publish-Step (Events, Vorbild `vendor/spryker/cms-page-data-import/.../CmsPagePublishStep.php`):
+Publish step (events, model `vendor/spryker/cms-page-data-import/.../CmsPagePublishStep.php`):
 ```php
 class CmsPagePublishStep extends PublishAwareStep implements DataImportStepInterface
 {
@@ -134,44 +134,44 @@ class CmsPagePublishStep extends PublishAwareStep implements DataImportStepInter
     }
 }
 ```
-`PublishAwareStep::afterExecute()` übergibt Events an `DataImporterPublisher`; ausgelöst werden sie durch `DataImportPublisherPlugin::afterImport()` ([07-publish-sync](07-publish-sync.md)).
+`PublishAwareStep::afterExecute()` passes events to `DataImporterPublisher`; they are triggered by `DataImportPublisherPlugin::afterImport()` ([07-publish-sync](07-publish-sync.md)).
 
-## Fallstricke
+## Pitfalls
 
-| Symptom | Ursache / Lösung |
+| Symptom | Cause / solution |
 |---|---|
-| `Requested import type "x" was not found in <config>.` (Status trotzdem erfolgreich) | `data_entity` fehlt in Default-/`--config`-YAML; Plugin allein genügt nicht |
-| Plugin registriert, läuft aber nicht im Full-Import | YAML-Eintrag fehlt; (Legacy) `getFullImportTypes()` nicht ergänzt |
-| `Data importer not found for "x" importer type.` | nur im Legacy-Pfad ohne YAML; Typ nicht als Plugin registriert |
-| `Could not find file "...". Checked path(s): ...` | `source` falsch (relativ zum Projektroot, nicht zur YAML) |
-| `The key "x" was not found in data set. Available keys: ...` | CSV-Header weicht ab (Schreibweise, BOM, Delimiter) oder Step setzt den Schlüssel erst später; Step-Reihenfolge prüfen |
-| `No import group (except "FULL") can be used when an import type is specified` | `--group` mit Importer-Argument |
-| zwei Plugins mit gleichem `getImportType()` | das spätere überschreibt das frühere |
-| Daten importiert, Storefront leer | `DataImportEventBehaviorPlugin` schaltet Entity-Events beim Import ab; der Writer-Step muss `PublishAwareStep` erben und `addPublishEvents()` rufen (sonst nie Storage); außerdem Publish-Hook lief nicht / Queue nicht abgearbeitet: [07-publish-sync](07-publish-sync.md) |
-| Fehlerliste endet bei 50 | `ALERT: Amount of errors to log has been reached limit`: `DataImportConstants::DEFAULT_AMOUNT_OF_ERRORS` erhöhen oder `-t` |
-| Teil-Rollbacks, schwankende Zähler | `DataSetStepBrokerTransactionAware` rollt die ganze Bulk-Gruppe zurück; Bulk klein halten, Fehlerzeile beheben |
+| `Requested import type "x" was not found in <config>.` (status still successful) | `data_entity` missing in the default/`--config` YAML; the plugin alone is not enough |
+| Plugin registered, but does not run in the full import | YAML entry missing; (legacy) `getFullImportTypes()` not extended |
+| `Data importer not found for "x" importer type.` | only in the legacy path without YAML; type not registered as a plugin |
+| `Could not find file "...". Checked path(s): ...` | `source` wrong (relative to the project root, not to the YAML) |
+| `The key "x" was not found in data set. Available keys: ...` | CSV header differs (spelling, BOM, delimiter) or a step only sets the key later; check step order |
+| `No import group (except "FULL") can be used when an import type is specified` | `--group` with importer argument |
+| two plugins with the same `getImportType()` | the later one overrides the earlier one |
+| Data imported, Storefront empty | `DataImportEventBehaviorPlugin` disables entity events during import; the writer step must extend `PublishAwareStep` and call `addPublishEvents()` (otherwise never in storage); additionally the publish hook did not run / queue not processed: [07-publish-sync](07-publish-sync.md) |
+| Error list ends at 50 | `ALERT: Amount of errors to log has been reached limit`: increase `DataImportConstants::DEFAULT_AMOUNT_OF_ERRORS` or use `-t` |
+| Partial rollbacks, fluctuating counters | `DataSetStepBrokerTransactionAware` rolls back the whole bulk group; keep bulk small, fix the faulty row |
 
-- Neue Importer als eigenes Projektmodul mit Plugin, nicht im `switch` der Pyz-Factory ergänzen. Core-Importer und deren CSV (`vendor/.../data/import/*.csv`) nie ändern (Upgrader, [28-upgradability](28-upgradability.md)); Projektdaten gehören nach `data/import/`.
-- Steps greifen im Release direkt per Propel-Query zu (erlaubt in Importern); für Fachlogik anderer Module Facade nur nutzen, wenn ohne DB-Abfrage pro Zeile.
-- Importer idempotent (`findOneOrCreate()` auf natürlichem Schlüssel): Demo-Install läuft mehrfach.
-- Struktur der Demo-Shop-Verzeichnisse beibehalten (`${SPRYKER_REGION}` in Install-Recipes).
-- **Deprecated/veraltet:** Import ohne YAML (`DataImportExecutor::executeByImporterType()` `@deprecated`, Console warnt; im Pyz-Projekt irrelevant, da `getDefaultYamlConfigPath()` gesetzt). Tippfehler-Variante `BULK_MODE_MEMORY_THESHOLD_PERCENT` / `getBulkWriteMemoryThesoldPercent()` nur BC, `...THRESHOLD...` nutzen.
-- **Doku-Abweichungen:** `execution-order-of-data-importers` sagt "store is hardcoded", im Release ist `store` ein regulärer Importer (`StoreDataImportPlugin`, erste Action in `full_EU.yml`). Queue-Importer-Doku (2021) überschreibt `Pyz\...\DataImportBusinessFactory::getImporter()` und nennt `QueueWriterConfigurationTransfer`; im Release existiert der Override nicht, der Transfer heißt `DataImporterQueueWriterConfigurationTransfer`. YAML-Doku (2021) nennt `catalog_setup_import_config.yml`, im Release `*_import_config_{EU,US}.yml`.
-- `file_system`/Flysystem-Quellen `[Annahme]` (nicht ausgeführt); das Verhalten von `-f` im YAML-Modus ist geklärt (wirkungslos, s. Tabelle).
+- Add new importers as a dedicated project module with a plugin, not in the `switch` of the Pyz factory. Never change core importers and their CSV (`vendor/.../data/import/*.csv`) (Upgrader, [28-upgradability](28-upgradability.md)); project data belongs in `data/import/`.
+- In the release, steps access data directly via Propel query (allowed in importers); for business logic of other modules only use a Facade if it needs no DB query per row.
+- Importers idempotent (`findOneOrCreate()` on a natural key): the demo install runs multiple times.
+- Keep the structure of the demo shop directories (`${SPRYKER_REGION}` in install recipes).
+- **Deprecated/outdated:** import without YAML (`DataImportExecutor::executeByImporterType()` `@deprecated`, console warns; irrelevant in the Pyz project, since `getDefaultYamlConfigPath()` is set). The typo variant `BULK_MODE_MEMORY_THESHOLD_PERCENT` / `getBulkWriteMemoryThesoldPercent()` only for BC, use `...THRESHOLD...`.
+- **Docs deviations:** `execution-order-of-data-importers` says "store is hardcoded", in the release `store` is a regular importer (`StoreDataImportPlugin`, first action in `full_EU.yml`). The queue importer docs (2021) override `Pyz\...\DataImportBusinessFactory::getImporter()` and name `QueueWriterConfigurationTransfer`; in the release the override does not exist, the transfer is called `DataImporterQueueWriterConfigurationTransfer`. The YAML docs (2021) name `catalog_setup_import_config.yml`, in the release `*_import_config_{EU,US}.yml`.
+- `file_system`/Flysystem sources `[Assumption]` (not executed); the behavior of `-f` in YAML mode is clarified (no effect, see table).
 
-## Checkliste
-- [ ] Modul `Pyz\Zed\<X>DataImport` mit Config, leerem DependencyProvider, Factory, Facade, Plugin
-- [ ] Steps: Lookups zuerst, Writer zuletzt; Pflichtspalten validiert; idempotent
-- [ ] Plugin in `getDataImporterPlugins()`; ggf. Konsole in `ConsoleDependencyProvider`
-- [ ] `data_entity` in `full_*.yml` (Region EU und US), Reihenfolge nach Abhängigkeiten
-- [ ] CSV unter `data/import/common/...`, `source` relativ zum Projektroot
-- [ ] `data:import:dump` zeigt den Typ, Testlauf mit `-t`
-- [ ] Events/Publish geklärt: Writer erbt `PublishAwareStep` und ruft `addPublishEvents()` (Entity-Events sind beim Import aus), große Mengen: Bulk/Batch
-- [ ] Nichts in `vendor/` geändert
+## Checklist
+- [ ] Module `Pyz\Zed\<X>DataImport` with Config, empty DependencyProvider, Factory, Facade, plugin
+- [ ] Steps: lookups first, writer last; mandatory columns validated; idempotent
+- [ ] Plugin in `getDataImporterPlugins()`; if needed, console in `ConsoleDependencyProvider`
+- [ ] `data_entity` in `full_*.yml` (region EU and US), order according to dependencies
+- [ ] CSV under `data/import/common/...`, `source` relative to the project root
+- [ ] `data:import:dump` shows the type, test run with `-t`
+- [ ] Events/publish clarified: writer extends `PublishAwareStep` and calls `addPublishEvents()` (entity events are off during import), large volumes: bulk/batch
+- [ ] Nothing changed in `vendor/`
 
-## Quellen
-Doku (Basis `https://docs.spryker.com/docs/dg/dev/data-import/latest/`): `data-import.html`, `creating-data-importers.html`, `data-importers-implementation.html`, `importing-data-with-a-configuration-file.html`, `execution-order-of-data-importers.html`, `importing-data-with-the-queue-data-importer.html`, `data-import-optimization-guidelines.html`.
+## Sources
+Docs (base `https://docs.spryker.com/docs/dg/dev/data-import/latest/`): `data-import.html`, `creating-data-importers.html`, `data-importers-implementation.html`, `importing-data-with-a-configuration-file.html`, `execution-order-of-data-importers.html`, `importing-data-with-the-queue-data-importer.html`, `data-import-optimization-guidelines.html`.
 
 Code: `vendor/spryker/data-import/src/Spryker/Zed/DataImport/` (`DataImportConfig`, `Business/DataImportBusinessFactory`, `Business/DataImporter/DataImporterCollectionCollector`, `Business/Model/{DataImporter,DataImporterDataSetWriterAware}`, `Business/Model/DataSet/*`, `Business/Model/DataImportStep/*`, `Communication/Console/{DataImportConsole,Executor/DataImportExecutor}`, `Communication/Plugin/*`), `vendor/spryker/data-import-extension/`, `vendor/spryker/stock-address-data-import/`, `vendor/spryker/price-product-data-import/.../AbstractSkuToIdProductAbstractStep.php`, `src/Pyz/Zed/DataImport/{DataImportConfig,DataImportDependencyProvider}.php`, `src/Pyz/Zed/Console/ConsoleDependencyProvider.php`, `data/import/**`, `config/install/*.yml`.
 
-Nachbarn: [04-transfer](04-transfer.md), [05-propel-persistenz](05-propel-persistenz.md), [02-projektmodul](02-projektmodul.md), [03-core-erweitern](03-core-erweitern.md), [19-multi-store-i18n](19-multi-store-i18n.md). Template: [data-import-step](../templates/data-import-step/README.md).
+Neighbours: [04-transfer](04-transfer.md), [05-propel-persistence](05-propel-persistence.md), [02-project-module](02-project-module.md), [03-extending-the-core](03-extending-the-core.md), [19-multi-store-i18n](19-multi-store-i18n.md). Template: [data-import-step](../templates/data-import-step/README.md).

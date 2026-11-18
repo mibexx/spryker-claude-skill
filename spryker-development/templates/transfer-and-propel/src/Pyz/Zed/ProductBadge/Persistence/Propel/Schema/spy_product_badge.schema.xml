@@ -18,7 +18,7 @@
 
         <id-method-parameter value="spy_product_badge_pk_seq"/>
 
-        <!-- Löst Entity.spy_product_badge.create|update|delete aus (-> Publisher) -->
+        <!-- Triggers Entity.spy_product_badge.create|update|delete (-> Publisher) -->
         <behavior name="event">
             <parameter name="spy_product_badge_all" column="*"/>
         </behavior>

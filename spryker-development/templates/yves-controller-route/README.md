@@ -1,9 +1,9 @@
-# Template: yves-controller-route (Yves-Seite mit Route, Controller, Twig-View)
+# Template: yves-controller-route (Yves page with route, controller, Twig view)
 
-## Zweck
-Yves-Modul `ProductBadgePage` mit der Route `GET /product-badge/{idProductAbstract}` (Routenname `product-badge`), die die Badges eines Abstract-Produkts aus dem Client `Pyz\Client\ProductBadge\ProductBadgeClientInterface` (Storage) in einer Twig-View ausgibt. Unbekannte ID oder keine Badges: Weiterleitung auf die 404-Fehlerseite (live: `307`, siehe unten). Erklärung des Musters: [14-yves-controller-routing](../../references/14-yves-controller-routing.md).
+## Purpose
+Yves module `ProductBadgePage` with the route `GET /product-badge/{idProductAbstract}` (route name `product-badge`), which outputs the badges of an abstract product from the Client `Pyz\Client\ProductBadge\ProductBadgeClientInterface` (Storage) in a Twig view. Unknown ID or no badges: redirect to the 404 error page (live: `307`, see below). Explanation of the pattern: [14-yves-controller-routing](../../references/14-yves-controller-routing.md).
 
-## Dateiliste (Zielpfad unter Projektroot)
+## File list (target path below the project root)
 ```
 src/Pyz/Yves/ProductBadgePage/Plugin/Router/ProductBadgePageRouteProviderPlugin.php
 src/Pyz/Yves/ProductBadgePage/Controller/ProductBadgeController.php
@@ -14,15 +14,15 @@ src/Pyz/Yves/ProductBadgePage/ProductBadgePageDependencyProvider.php
 src/Pyz/Yves/ProductBadgePage/Theme/default/views/product-badge/product-badge.twig
 ```
 
-## Platzhalter / Anpassung
-- `ProductBadgePage` (Modulordner = Namespace-Segment = Twig-Namespace `@ProductBadgePage`), `ProductBadge` (Controller ohne Suffix), `product-badge` (Route/View) ersetzen.
-- In `buildGetRoute()` müssen Modulname und Controllername exakt zu Ordner und Klasse passen (`'ProductBadgePage'`, `'ProductBadge'`, nicht `'ProductBadgeController'`).
-- Das Template wird explizit an `view()` übergeben (`@ProductBadgePage/views/product-badge/product-badge.twig` = Datei `Theme/default/views/product-badge/product-badge.twig`); nicht auf die `_template`-Konvention verlassen.
-- Der Titel in der Twig-Datei ist hartkodiert; für Mehrsprachigkeit Glossar-Key und `| trans` verwenden (→ [19-multi-store-i18n](../../references/19-multi-store-i18n.md)).
-- Soll die Seite nur für eingeloggte Kunden sein: URL in `CustomerConstants::CUSTOMER_SECURED_PATTERN` (`config/Shared/config_default.php`) aufnehmen (→ [21-security-session](../../references/21-security-session.md)).
+## Placeholders / customization
+- Replace `ProductBadgePage` (module folder = namespace segment = Twig namespace `@ProductBadgePage`), `ProductBadge` (controller without suffix), `product-badge` (route/view).
+- In `buildGetRoute()` the module name and controller name must match folder and class exactly (`'ProductBadgePage'`, `'ProductBadge'`, not `'ProductBadgeController'`).
+- The template is passed explicitly to `view()` (`@ProductBadgePage/views/product-badge/product-badge.twig` = file `Theme/default/views/product-badge/product-badge.twig`); do not rely on the `_template` convention.
+- The title in the Twig file is hard-coded; for multilingual support use a glossary key and `| trans` (→ [19-multi-store-i18n](../../references/19-multi-store-i18n.md)).
+- If the page should only be for logged-in customers: add the URL to `CustomerConstants::CUSTOMER_SECURED_PATTERN` (`config/Shared/config_default.php`) (→ [21-security-session](../../references/21-security-session.md)).
 
-## Registrierung
-Datei `src/Pyz/Yves/Router/RouterDependencyProvider.php`, Methode `getRouteProvider()`:
+## Registration
+File `src/Pyz/Yves/Router/RouterDependencyProvider.php`, method `getRouteProvider()`:
 ```php
 use Pyz\Yves\ProductBadgePage\Plugin\Router\ProductBadgePageRouteProviderPlugin;
 ...
@@ -34,23 +34,23 @@ protected function getRouteProvider(): array
     ];
 }
 ```
-Ohne Eintrag: 404. Kein composer-Eintrag nötig (Namespace `Pyz\`). Voraussetzung: Client-Template `Pyz\Client\ProductBadge` (Locator `productBadge()->client()`).
+Without an entry: 404. No composer entry needed (namespace `Pyz\`). Prerequisite: Client template `Pyz\Client\ProductBadge` (locator `productBadge()->client()`).
 
-## Befehle danach
-`[live verifiziert (202610.0)]` (Template im Shop installiert, Befehle und Route ausgeführt)
+## Commands afterwards
+`[live verified (202610.0)]` (template installed in the shop, commands and route executed)
 ```bash
-docker/sdk cli vendor/bin/yves router:cache:warm-up       # Yves-Router-Cache (Yves-Konsole, nicht Zed); im Dev-Modus fängt YvesDevelopmentRouterPlugin Treffer ab
-docker/sdk console cache:empty-all                        # Zed-Konsole
-docker/sdk cli vendor/bin/yves router:debug product-badge # Route prüfen (nur in der Yves-Konsole, in Zed gibt es kein router:debug)
+docker/sdk cli vendor/bin/yves router:cache:warm-up       # Yves router cache (Yves console, not Zed); in dev mode YvesDevelopmentRouterPlugin intercepts matches
+docker/sdk console cache:empty-all                        # Zed console
+docker/sdk cli vendor/bin/yves router:debug product-badge # check the route (only in the Yves console, Zed has no router:debug)
 ```
-Aufruf: `http://yves.eu.spryker.local/product-badge/<idProductAbstract>` (ggf. mit Sprachpräfix `/en/...`).
+Call: `http://yves.eu.spryker.local/product-badge/<idProductAbstract>` (possibly with language prefix `/en/...`).
 
-Live-Ergebnis (202610.0): `GET /product-badge/4` und `/en/product-badge/4` -> `200`, Seite mit `<h1>Product badges (#4)</h1>` und `<li data-qa="product-badge-new">`. Unbekannte ID (`/product-badge/9999`) -> **`307` Redirect** auf `/DE/en/error-page/404?errorMessage=No+product+badges+found+for+abstract+product+%229999%22.` (Die Fehlerseite selbst liefert in diesem Shop HTTP `200`.) `router:debug product-badge` zeigt Pfad `/product-badge/{idProductAbstract}`, Requirement `\d+`, Controller `ProductBadgeController::indexAction`.
+Live result (202610.0): `GET /product-badge/4` and `/en/product-badge/4` -> `200`, page with `<h1>Product badges (#4)</h1>` and `<li data-qa="product-badge-new">`. Unknown ID (`/product-badge/9999`) -> **`307` redirect** to `/DE/en/error-page/404?errorMessage=No+product+badges+found+for+abstract+product+%229999%22.` (The error page itself returns HTTP `200` in this shop.) `router:debug product-badge` shows path `/product-badge/{idProductAbstract}`, requirement `\d+`, controller `ProductBadgeController::indexAction`.
 
-## Verwendete Quelle (Vorbild)
-- `src/Pyz/Yves/ExampleProductSalePage/` (Provider, Controller, Factory, DependencyProvider, Twig-View)
-- `src/Pyz/Yves/Router/RouterDependencyProvider.php` (Registrierung)
+## Source used (model)
+- `src/Pyz/Yves/ExampleProductSalePage/` (provider, controller, Factory, DependencyProvider, Twig view)
+- `src/Pyz/Yves/Router/RouterDependencyProvider.php` (registration)
 - `vendor/spryker/router/src/Spryker/Yves/Router/Plugin/RouteProvider/AbstractRouteProviderPlugin.php`, `vendor/spryker/kernel/src/Spryker/Yves/Kernel/Controller/AbstractController.php`
 
-## Verifikationsstatus
-Klassen und Signaturen (`AbstractRouteProviderPlugin::buildGetRoute`, `AbstractController::view`, `AbstractBundleDependencyProvider::provideDependencies(Container)`, `AbstractFactory::getProvidedDependency`, Template `page-layout-main` mit Block `content`) gegen `vendor/` und `src/Pyz` geprüft. Durchgespielt im Shop 202610.0 (Registrierung in `RouterDependencyProvider`, Router-Cache-Warmup, Seite per curl), `code:sniff:style` Exit 0, PHPStan Level 6 ohne Befund. `[live verifiziert (202610.0)]`
+## Verification status
+Classes and signatures (`AbstractRouteProviderPlugin::buildGetRoute`, `AbstractController::view`, `AbstractBundleDependencyProvider::provideDependencies(Container)`, `AbstractFactory::getProvidedDependency`, template `page-layout-main` with block `content`) checked against `vendor/` and `src/Pyz`. Walked through in shop 202610.0 (registration in `RouterDependencyProvider`, router cache warm-up, page via curl), `code:sniff:style` exit 0, PHPStan level 6 without findings. `[live verified (202610.0)]`

@@ -1,32 +1,32 @@
-# Template: twig-molecule-organism (Molecule `product-badge`, Organism `product-badge-list`)
+# Template: twig-molecule-organism (molecule `product-badge`, organism `product-badge-list`)
 
-## Zweck
+## Purpose
 
-Yves-Atomic-Design-Komponenten im Frontend-Builder-v2-Kontrakt: eine reine Style-/Markup-Molecule (`product-badge`, Label eines `ProductBadge`) und ein Organism mit TypeScript-Custom-Element (`product-badge-list`, zeigt max. N Badges, Rest per "+N"-Button). Grundlagen: [../../references/15-yves-frontend-atomic.md](../../references/15-yves-frontend-atomic.md).
+Yves atomic design components in the frontend builder v2 contract: a pure style/markup molecule (`product-badge`, label of a `ProductBadge`) and an organism with a TypeScript custom element (`product-badge-list`, shows at most N badges, the rest via a "+N" button). Basics: [../../references/15-yves-frontend-atomic.md](../../references/15-yves-frontend-atomic.md).
 
-## Dateiliste (Zielpfad unter dem Projektroot)
+## File list (target path below the project root)
 
-| Datei | Zweck |
+| File | Purpose |
 |---|---|
-| `src/Pyz/Yves/ShopUi/Theme/default/components/molecules/product-badge/product-badge.twig` | Markup (`<span class="product-badge">`), `define` für `data.label` (Pflicht) und `data.badgeKey` |
-| `…/molecules/product-badge/product-badge.scss` | Sass-Mixin `shop-ui-product-badge` (+ Base-Hook, Aktions-Modifier aus `$setting-color-actions`) |
+| `src/Pyz/Yves/ShopUi/Theme/default/components/molecules/product-badge/product-badge.twig` | markup (`<span class="product-badge">`), `define` for `data.label` (required) and `data.badgeKey` |
+| `…/molecules/product-badge/product-badge.scss` | Sass mixin `shop-ui-product-badge` (+ base hook, action modifiers from `$setting-color-actions`) |
 | `…/molecules/product-badge/style.scss` | `helper-import(molecule, product-badge)` + `@include` |
-| `…/molecules/product-badge/index.ts` | Entry-Point (`import './style.scss';`, kein Custom Element) |
-| `…/organisms/product-badge-list/product-badge-list.twig` | Markup, bindet die Molecule per `include … only` ein |
-| `…/organisms/product-badge-list/product-badge-list.ts` | Custom Element (`extends Component`, nur `init()`) |
-| `…/organisms/product-badge-list/product-badge-list.scss` | Mixin `shop-ui-product-badge-list` |
+| `…/molecules/product-badge/index.ts` | entry point (`import './style.scss';`, no custom element) |
+| `…/organisms/product-badge-list/product-badge-list.twig` | markup, includes the molecule via `include … only` |
+| `…/organisms/product-badge-list/product-badge-list.ts` | custom element (`extends Component`, only `init()`) |
+| `…/organisms/product-badge-list/product-badge-list.scss` | mixin `shop-ui-product-badge-list` |
 | `…/organisms/product-badge-list/style.scss` | `helper-import(organism, product-badge-list)` + `@include` |
 | `…/organisms/product-badge-list/index.ts` | `import './style.scss'` + `register('product-badge-list', () => import(…))` |
 
-## Platzhalter / Anpassung
+## Placeholders / customization
 
-- `product-badge` / `product-badge-list` / `ProductBadge` -> eigener Name (Ordnername = Dateiname = Tag = BEM-Block; Mixin-Name `shop-ui-<name>`; Tag mit Bindestrich).
-- Ablageort: hier Pyz-ShopUi (`molecule('product-badge')`, Modul-Default `ShopUi`). Alternative: eigenes Yves-Modul, z. B. `src/Pyz/Yves/ProductBadgeWidget/Theme/default/components/...` (Builder findet es über `src/Pyz/Yves`); dann `molecule('product-badge', 'ProductBadgeWidget')`.
-- `data.badges`: Liste von Objekten mit `label` und `badgeKey` (z. B. `ProductBadgeTransfer` aus `ProductBadgeClientInterface::findProductBadgesByIdProductAbstract(int): array`).
-- Modifier (Aktionsfarben) werden vom Aufrufer über `modifiers: ['alert']` (`success`, `warning`, `alert`) an die Molecule gegeben; im Organism nicht fest verdrahtet.
-- Attribute des Organism: `max-visible` (Default 3), `hidden-class-name`.
+- `product-badge` / `product-badge-list` / `ProductBadge` -> your own name (folder name = file name = tag = BEM block; mixin name `shop-ui-<name>`; tag with a hyphen).
+- Location: here Pyz ShopUi (`molecule('product-badge')`, module default `ShopUi`). Alternative: your own Yves module, e.g. `src/Pyz/Yves/ProductBadgeWidget/Theme/default/components/...` (the builder finds it via `src/Pyz/Yves`); then `molecule('product-badge', 'ProductBadgeWidget')`.
+- `data.badges`: list of objects with `label` and `badgeKey` (e.g. `ProductBadgeTransfer` from `ProductBadgeClientInterface::findProductBadgesByIdProductAbstract(int): array`).
+- Modifiers (action colors) are passed to the molecule by the caller via `modifiers: ['alert']` (`success`, `warning`, `alert`); not hard-wired in the organism.
+- Attributes of the organism: `max-visible` (default 3), `hidden-class-name`.
 
-Einbindung (z. B. in einem Widget-Twig, → Template `widget`):
+Inclusion (e.g. in a widget Twig, → template `widget`):
 
 ```twig
 {% include organism('product-badge-list') with {
@@ -35,37 +35,37 @@ Einbindung (z. B. in einem Widget-Twig, → Template `widget`):
 } only %}
 ```
 
-## Registrierung
+## Registration
 
-Keine PHP-Registrierung. Der Builder findet die Komponenten über `components/*/*/index.ts` unter `src/Pyz/Yves`. Glossar-Key für den Button-Text in `data/import/common/common/glossary.csv` ergänzen:
+No PHP registration. The builder finds the components via `components/*/*/index.ts` under `src/Pyz/Yves`. Add the glossary key for the button text to `data/import/common/common/glossary.csv`:
 
 ```csv
 product_badge.show_more,Mehr anzeigen,de_DE
 product_badge.show_more,Show more,en_US
 ```
 
-(Der Glossar-Text ist das `aria-label` des Buttons; sichtbar setzt TypeScript `+N` bzw. `-`.)
+(The glossary text is the button's `aria-label`; visibly, TypeScript sets `+N` or `-`.)
 
-## Befehle danach
+## Commands afterwards
 
-`data:import:glossary`, `publish:trigger-events -r translation`, `queue:worker:start --stop-when-empty`, `npm run yves`, `yves:lint`, `yves:stylelint` liefen im Shop 202610.0 mit Exit 0 `[live verifiziert (202610.0)]`
+`data:import:glossary`, `publish:trigger-events -r translation`, `queue:worker:start --stop-when-empty`, `npm run yves`, `yves:lint`, `yves:stylelint` ran in shop 202610.0 with exit 0 `[live verified (202610.0)]`
 
 ```bash
 docker/sdk cli console data:import:glossary
 docker/sdk cli console publish:trigger-events -r translation
 docker/sdk cli console queue:worker:start --stop-when-empty
-docker/sdk cli 'npm run yves'            # Neue Komponente: bei laufendem yves:watch neu starten
+docker/sdk cli 'npm run yves'            # new component: restart a running yves:watch
 docker/sdk cli 'npm run yves:lint'
 docker/sdk cli 'npm run yves:stylelint'
 ```
 
-## Vorbild-Klassen / Quelle
+## Model classes / source
 
-- `vendor/spryker-shop/shop-ui/src/SprykerShop/Yves/ShopUi/Theme/default/components/organisms/header/{index.ts,style.scss,header.scss,header.twig}` (v2-Kontrakt, Base-Hook)
-- `…/components/atoms/badge/badge.scss` (Aktions-Modifier-Schleife über `$setting-color-actions`)
-- `…/components/molecules/toggler-click/{index.ts,toggler-click.ts,toggler-click.twig}` (Custom Element, Attribute)
+- `vendor/spryker-shop/shop-ui/src/SprykerShop/Yves/ShopUi/Theme/default/components/organisms/header/{index.ts,style.scss,header.scss,header.twig}` (v2 contract, base hook)
+- `…/components/atoms/badge/badge.scss` (action modifier loop over `$setting-color-actions`)
+- `…/components/molecules/toggler-click/{index.ts,toggler-click.ts,toggler-click.twig}` (custom element, attributes)
 - `src/Pyz/Yves/ShopUi/Theme/default/styles/helpers/{_calc-rem.scss,_font.scss}` (`rem()`, `fw()`)
 
-## Verifikationsstatus
+## Verification status
 
-Struktur, Twig-API (`model('component')`, `define`, `required`), Registry-Import und Sass-Helper (`helper-import`, `helper-font-size`, `helper-color-light/dark`, `$setting-color-actions`, `rem()`) gegen `vendor/` und `src/Pyz` geprüft. **Durchgespielt im Shop 202610.0:** `npm run yves` baut ohne Anpassung (webpack "compiled successfully", 328 Entry Points, Chunk `yves_default.product-badge-list.js`, Styles in `yves_default.critical.css`), `yves:lint` und `yves:stylelint` ohne Befund. Gerendert über `{% include organism('product-badge-list') with {data: {badges: [...]}, attributes: {'max-visible': 2}} only %}` in einer Produktseite: `<product-badge-list class="custom-element ..." max-visible='2' hidden-class-name='product-badge-list__hidden'>` mit drei `<span class="product-badge ..." data-badge-key=...>` und Toggler-Button mit `aria-label="Show more"` (Glossar-Key `product_badge.show_more` importiert und in Redis `kv:translation:en_us:product_badge.show_more`). Das Verhalten des Custom Elements im Browser (`+N`-Button) wurde nicht ausgeführt, nur Build und serverseitiges Rendering. Der Build liegt im Container (`/data/public/Yves/assets/current/default`), nicht im Host-Projektverzeichnis. `[live verifiziert (202610.0)]` Abweichung zur Recherche: `$setting-color-alert` existiert nicht, daher Modifier aus `$setting-color-actions`. Das Custom Element hat bewusst kein Typ-Import außer `ShopUi/models/component` (Pfad-Alias aus `tsconfig.yves.json`, wie in Pyz-Komponenten).
+Structure, Twig API (`model('component')`, `define`, `required`), registry import and Sass helpers (`helper-import`, `helper-font-size`, `helper-color-light/dark`, `$setting-color-actions`, `rem()`) checked against `vendor/` and `src/Pyz`. **Walked through in shop 202610.0:** `npm run yves` builds without adjustments (webpack "compiled successfully", 328 entry points, chunk `yves_default.product-badge-list.js`, styles in `yves_default.critical.css`), `yves:lint` and `yves:stylelint` without findings. Rendered via `{% include organism('product-badge-list') with {data: {badges: [...]}, attributes: {'max-visible': 2}} only %}` in a product page: `<product-badge-list class="custom-element ..." max-visible='2' hidden-class-name='product-badge-list__hidden'>` with three `<span class="product-badge ..." data-badge-key=...>` and a toggler button with `aria-label="Show more"` (glossary key `product_badge.show_more` imported and in Redis `kv:translation:en_us:product_badge.show_more`). The behavior of the custom element in the browser (`+N` button) was not executed, only the build and server-side rendering. The build is located in the container (`/data/public/Yves/assets/current/default`), not in the host project directory. `[live verified (202610.0)]` Note: `$setting-color-alert` does not exist, hence modifiers from `$setting-color-actions`. The custom element deliberately has no type import other than `ShopUi/models/component` (path alias from `tsconfig.yves.json`, as in Pyz components).

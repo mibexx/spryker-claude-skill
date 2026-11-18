@@ -19,7 +19,7 @@ suites:
             enabled:
                 - Asserts
                 - \PyzTest\Shared\Testify\Helper\Environment
-                # BusinessHelper vor LocatorHelper: beide haben getFacade(); die Reihenfolge entscheidet beim Actor-Build [Annahme]
+                # BusinessHelper before LocatorHelper: both have getFacade(); the order decides during the actor build [Assumption]
                 - \SprykerTest\Zed\Testify\Helper\Business\BusinessHelper
                 - \SprykerTest\Shared\Testify\Helper\ConfigHelper
                 - \SprykerTest\Shared\Testify\Helper\LocatorHelper:

@@ -11,7 +11,7 @@
 
         <id-method-parameter value="spy_product_badge_storage_pk_seq"/>
 
-        <!-- Spalten data und key (unique) ergänzt der Behavior automatisch -->
+        <!-- Columns data and key (unique) are added automatically by the behavior -->
         <behavior name="synchronization">
             <parameter name="resource" value="product_badge"/>
             <parameter name="key_suffix_column" value="fk_product_abstract"/>

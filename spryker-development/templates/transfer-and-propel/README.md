@@ -1,46 +1,46 @@
 # Template transfer-and-propel
 
-Transfer-Definitionen und Propel-Schemas für das Laufbeispiel **ProductBadge**: Quell-Tabelle mit `event`-Behavior, Storage-Tabelle mit `synchronization`-Behavior, zugehörige Transfers. Hintergrund: [Transfer](../../references/04-transfer.md), [Propel](../../references/05-propel-persistenz.md), [Publish & Sync](../../references/07-publish-sync.md).
+Transfer definitions and Propel schemas for the running example **ProductBadge**: source table with `event` behavior, storage table with `synchronization` behavior, associated transfers. Background: [Transfer](../../references/04-transfer.md), [Propel](../../references/05-propel-persistence.md), [Publish & Sync](../../references/07-publish-sync.md).
 
-## Dateiliste (Zielpfad unter dem Projektroot)
+## File list (target path below the project root)
 
-| Datei | Inhalt |
+| File | Content |
 |---|---|
-| `src/Pyz/Shared/ProductBadge/Transfer/product_badge.transfer.xml` | `ProductBadge`, `ProductBadgeCollection`, `ProductBadgeCriteria` (alle `strict="true"`) |
-| `src/Pyz/Shared/ProductBadgeStorage/Transfer/product_badge_storage.transfer.xml` | `ProductBadgeStorage` (Payload der Storage-Tabelle / des Redis-Werts) |
-| `src/Pyz/Zed/ProductBadge/Persistence/Propel/Schema/spy_product_badge.schema.xml` | Tabelle `spy_product_badge`, FK auf `spy_product_abstract`, Behaviors `event` und `timestampable` |
-| `src/Pyz/Zed/ProductBadgeStorage/Persistence/Propel/Schema/spy_product_badge_storage.schema.xml` | Tabelle `spy_product_badge_storage`, Behaviors `synchronization` und `timestampable` |
+| `src/Pyz/Shared/ProductBadge/Transfer/product_badge.transfer.xml` | `ProductBadge`, `ProductBadgeCollection`, `ProductBadgeCriteria` (all `strict="true"`) |
+| `src/Pyz/Shared/ProductBadgeStorage/Transfer/product_badge_storage.transfer.xml` | `ProductBadgeStorage` (payload of the storage table / the Redis value) |
+| `src/Pyz/Zed/ProductBadge/Persistence/Propel/Schema/spy_product_badge.schema.xml` | table `spy_product_badge`, FK to `spy_product_abstract`, behaviors `event` and `timestampable` |
+| `src/Pyz/Zed/ProductBadgeStorage/Persistence/Propel/Schema/spy_product_badge_storage.schema.xml` | table `spy_product_badge_storage`, behaviors `synchronization` and `timestampable` |
 
-## Festgelegte Namen (gelten für alle ProductBadge-Templates)
+## Fixed names (apply to all ProductBadge templates)
 
-| Gegenstand | Wert |
+| Item | Value |
 |---|---|
-| Quell-Tabelle / Entity | `spy_product_badge` / `Orm\Zed\ProductBadge\Persistence\SpyProductBadge(Query)` |
-| Storage-Tabelle / Entity | `spy_product_badge_storage` / `Orm\Zed\ProductBadgeStorage\Persistence\SpyProductBadgeStorage(Query)` |
-| Resource-Name (`resource` im Behavior) | `product_badge` |
-| Storage-Key (Redis, ohne internen Prefix `kv:`) | `product_badge:<id_product_abstract>`, z. B. `product_badge:123` (kein Store, keine Locale; Key-Suffix-Spalte `fk_product_abstract`) |
-| Sync-Queue (`queue_group`) | `sync.storage.product_badge` |
-| Publish-Queue | `publish.product_badge` |
-| Entity-Events (event-Behavior, `column="*"`) | `Entity.spy_product_badge.create`, `Entity.spy_product_badge.update`, `Entity.spy_product_badge.delete` |
-| Publish-Event (Trigger-Plugin, Re-Generation) | `ProductBadge.product_badge.publish` |
+| Source table / entity | `spy_product_badge` / `Orm\Zed\ProductBadge\Persistence\SpyProductBadge(Query)` |
+| Storage table / entity | `spy_product_badge_storage` / `Orm\Zed\ProductBadgeStorage\Persistence\SpyProductBadgeStorage(Query)` |
+| Resource name (`resource` in the behavior) | `product_badge` |
+| Storage key (Redis, without internal prefix `kv:`) | `product_badge:<id_product_abstract>`, e.g. `product_badge:123` (no store, no locale; key suffix column `fk_product_abstract`) |
+| Sync queue (`queue_group`) | `sync.storage.product_badge` |
+| Publish queue | `publish.product_badge` |
+| Entity events (event behavior, `column="*"`) | `Entity.spy_product_badge.create`, `Entity.spy_product_badge.update`, `Entity.spy_product_badge.delete` |
+| Publish event (trigger plugin, regeneration) | `ProductBadge.product_badge.publish` |
 
-Redis-Wert (JSON, vom Behavior um `_timestamp` ergänzt): `{"id_product_abstract":123,"product_badges":[{"id_product_badge":1,"fk_product_abstract":123,"badge_key":"new","label":"Neu"}]}`.
+Redis value (JSON, extended with `_timestamp` by the behavior): `{"id_product_abstract":123,"product_badges":[{"id_product_badge":1,"fk_product_abstract":123,"badge_key":"new","label":"New"}]}`.
 
-## Platzhalter / Anpassung
+## Placeholders / customization
 
-- `ProductBadge` / `product_badge` durch den eigenen Modulnamen ersetzen (Transfer-, Schema-Dateiname, Namespace `Orm\Zed\<Modul>\Persistence`, Tabellenname, Behavior-Parameternamen, Resource, Queue-Namen).
-- Tabellenpräfix: Die Laufbeispiel-Verträge verwenden `spy_`. Für echte Projekttabellen empfiehlt die Recherche `pyz_` mit explizitem `phpName` (siehe [Propel](../../references/05-propel-persistenz.md)). Dann ändern sich Tabellenname, Entity-Klassen und Event-Namen (`Entity.pyz_product_badge.*`).
-- Fremdschlüsselname und Indexnamen höchstens 63 Zeichen (Postgres).
-- Storage-Tabelle: Tabellenname muss auf `_storage` (Ziel Redis) bzw. `_search` (Ziel Search) enden.
-- Spalten `data` und `key` (unique) nicht deklarieren, der `synchronization`-Behavior ergänzt sie (`modifyTable()`).
-- Kein `store`-/`locale`-Parameter, weil der Key store- und locale-unabhängig ist. Mit `store` wäre `queue_pool` nicht erlaubt (`InvalidConfigurationException`).
-- **`queue_pool` ist hier Pflicht** (`synchronizationPool`, wie bei den Pyz-Storage-Tabellen und in `RabbitMqConfig::getQueuePools()`). Ohne Pool schreibt der Behavior zwar in die Queue `sync.storage.product_badge`, aber `sync:data product_badge` bricht mit `SynchronizationQueuePoolNotFoundException` ab (live gefunden, siehe [publisher-and-synchronization](../publisher-and-synchronization/README.md)).
+- Replace `ProductBadge` / `product_badge` with your own module name (transfer and schema file names, namespace `Orm\Zed\<Module>\Persistence`, table name, behavior parameter names, resource, queue names).
+- Table prefix: the running example contracts use `spy_`. For real project tables the skill recommends `pyz_` with an explicit `phpName` (see [Propel](../../references/05-propel-persistence.md)). Then the table name, entity classes and event names change (`Entity.pyz_product_badge.*`).
+- Foreign key name and index names at most 63 characters (Postgres).
+- Storage table: the table name must end in `_storage` (target Redis) or `_search` (target Search).
+- Do not declare the columns `data` and `key` (unique); the `synchronization` behavior adds them (`modifyTable()`).
+- No `store`/`locale` parameter, because the key is store- and locale-independent. With `store`, `queue_pool` would not be allowed (`InvalidConfigurationException`).
+- **`queue_pool` is mandatory here** (`synchronizationPool`, as with the Pyz storage tables and in `RabbitMqConfig::getQueuePools()`). Without a pool the behavior does write to the queue `sync.storage.product_badge`, but `sync:data product_badge` aborts with `SynchronizationQueuePoolNotFoundException` (found live, see [publisher-and-synchronization](../publisher-and-synchronization/README.md)).
 
-## Registrierung
+## Registration
 
-Keine eigene Registrierung. Schema-Dateien werden über den Glob `src/*/Zed/*/Persistence/Propel/Schema/` und Transfer-Dateien über `src/*/Shared/*/Transfer/` gefunden. Die Queue-/Plugin-Registrierung steht im Template [publisher-and-synchronization](../publisher-and-synchronization/README.md).
+No separate registration. Schema files are found via the glob `src/*/Zed/*/Persistence/Propel/Schema/` and transfer files via `src/*/Shared/*/Transfer/`. The queue/plugin registration is in the template [publisher-and-synchronization](../publisher-and-synchronization/README.md).
 
-## Befehle danach `[live verifiziert (202610.0)]`
+## Commands afterwards `[live verified (202610.0)]`
 
 ```bash
 docker/sdk cli console transfer:generate
@@ -52,16 +52,16 @@ docker/sdk cli console propel:model:build
 docker/sdk cli console transfer:entity:generate
 ```
 
-Alternativ `docker/sdk cli console propel:install` (Komplettlauf inkl. Entity-Transfers; ohne Änderung ein No-Op mit Exit 0).
+Alternatively `docker/sdk cli console propel:install` (complete run incl. entity transfers; without changes a no-op with exit 0).
 
-Live-Ergebnis im Shop 202610.0 (alle Exit 0): `propel:diff` meldet `2 added tables` und legt `src/Orm/Propel/Migration_mysql/PropelMigration_<ts>.php` an (Engine MySQL/MariaDB; das Verzeichnis ist git-ignoriert), `propel:migrate` führt `4 of 4 SQL statements` aus und legt `spy_product_badge` und `spy_product_badge_storage` an (die Storage-Tabelle bekommt von der `synchronization`-Behavior `data`, `key`, `alias_keys` mit Unique-Index auf `key`), danach meldet `propel:diff` `Same XML and database structures`. `propel:model:build` und `transfer:entity:generate` erzeugen `src/Orm/Zed/ProductBadge*` und `SpyProductBadge(Storage)EntityTransfer`. Beide Entity-Namespaces liegen unter `src/Orm/Zed/<Modul>/Persistence`. Nach Änderung der Behaviors ist `propel:install` bzw. `propel:model:build` zwingend, sonst fehlen die Event- und Sync-Hooks in den Entities.
+Live result in shop 202610.0 (all exit 0): `propel:diff` reports `2 added tables` and creates `src/Orm/Propel/Migration_mysql/PropelMigration_<ts>.php` (engine MySQL/MariaDB; the directory is git-ignored), `propel:migrate` executes `4 of 4 SQL statements` and creates `spy_product_badge` and `spy_product_badge_storage` (the storage table gets `data`, `key`, `alias_keys` with a unique index on `key` from the `synchronization` behavior), afterwards `propel:diff` reports `Same XML and database structures`. `propel:model:build` and `transfer:entity:generate` generate `src/Orm/Zed/ProductBadge*` and `SpyProductBadge(Storage)EntityTransfer`. Both entity namespaces are located under `src/Orm/Zed/<Module>/Persistence`. After changing the behaviors, `propel:install` or `propel:model:build` is mandatory, otherwise the event and sync hooks are missing in the entities.
 
-## Vorbild-Quellen
+## Model sources
 
-- Transfer: `src/Pyz/Shared/ProductStorage/Transfer/product_storage.transfer.xml` (Kopfzeile), `vendor/spryker/asset-storage/src/Spryker/Shared/AssetStorage/Transfer/asset_storage.transfer.xml` (`strict="true"`).
-- Quell-Schema: `vendor/spryker/product-alternative/.../spy_product_alternative.schema.xml` (FK auf `spy_product_abstract`), `vendor/spryker/asset/.../spy_asset.schema.xml` (event-Behavior).
-- Storage-Schema: `vendor/spryker/asset-storage/.../spy_asset_slot_storage.schema.xml`, `vendor/spryker/publish-and-synchronize-health-check-storage/.../spy_publish_and_synchronize_health_check_storage.schema.xml`.
+- Transfer: `src/Pyz/Shared/ProductStorage/Transfer/product_storage.transfer.xml` (header line), `vendor/spryker/asset-storage/src/Spryker/Shared/AssetStorage/Transfer/asset_storage.transfer.xml` (`strict="true"`).
+- Source schema: `vendor/spryker/product-alternative/.../spy_product_alternative.schema.xml` (FK to `spy_product_abstract`), `vendor/spryker/asset/.../spy_asset.schema.xml` (event behavior).
+- Storage schema: `vendor/spryker/asset-storage/.../spy_asset_slot_storage.schema.xml`, `vendor/spryker/publish-and-synchronize-health-check-storage/.../spy_publish_and_synchronize_health_check_storage.schema.xml`.
 
-## Verifikationsstatus
+## Verification status
 
-Schema-Köpfe, Behavior-Parameter und Attribute gegen die genannten Vorbilder und `SynchronizationBehavior`/`EventBehavior` im Release 202610.0 geprüft (`modifyTable()` ergänzt `data`/`key`; Foreign Keys des Quell-Schemas landen als `foreignKeys` im Event). Durchgespielt im Shop 202610.0: `transfer:generate`, `transfer:validate -vv`, `propel:schema:copy`, `propel:diff`, `propel:migrate`, `propel:model:build`, `transfer:entity:generate`, `propel:install` (Details im Protokoll `live-verification.md`, Abschnitt Phase 2). Korrektur aus dem Lauf: `queue_pool` im Storage-Schema ergänzt. `[live verifiziert (202610.0)]`
+Schema headers, behavior parameters and attributes checked against the named models and `SynchronizationBehavior`/`EventBehavior` in release 202610.0 (`modifyTable()` adds `data`/`key`; foreign keys of the source schema end up as `foreignKeys` in the event). Walked through in shop 202610.0: `transfer:generate`, `transfer:validate -vv`, `propel:schema:copy`, `propel:diff`, `propel:migrate`, `propel:model:build`, `transfer:entity:generate`, `propel:install` (verified live in release 202610.0). Correction from the run: `queue_pool` added to the storage schema. `[live verified (202610.0)]`

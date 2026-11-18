@@ -1,70 +1,70 @@
-# Coding-Guidelines und statische Analyse (Recherche T-27)
+# Coding guidelines and static analysis
 
-> Status: Release 202610.0 (Commit d45396b8). Konfigurationsdateien, Sniffs und Regeln gelesen; Doku `code-architecture-guide` nur als Kurzfassung abgerufen, `code-quality` nur Navigation, Detaildoku der Tools (`dg/dev/sdks/sdk/development-tools/*`) nicht abgerufen: `[code-verifiziert, Doku nicht abgeglichen]`. Konsolenbefehle wurden im Container ausgeführt `[live verifiziert (202610.0)]` (echte Läufe und `-d`-Dry-Runs, die die tatsächlichen Aufrufe zeigen). **Wichtig:** Bei `code:sniff:style` und `code:sniff:architecture` meint `-m|--module` **Core-/Vendor-Module** (`Spryker.Kernel`); `-m Pyz.ProductBadge` läuft mit dem Core-Ruleset auf `vendor/pyz/productbadge` und scheitert (`The file "/data/vendor/pyz/console/" does not exist`, Exit 3 bzw. "No module(s) found", Exit 1). **Projektcode wird über das Pfad-Argument geprüft:** `code:sniff:style src/Pyz/Zed/ProductBadge` und `code:sniff:architecture -p 1 src/Pyz/Zed/ProductBadge`. Bei `code:phpstan` dagegen ist `-m ProductBadge` (ohne Organisation) richtig: es analysiert `src/Pyz/{Yves,Zed,Glue}/ProductBadge`; `-m Pyz.X` scheitert dort mit `DirectoryNotFoundException`. `code:sniff:architecture` ohne `-d` legt im Projektroot eine `architecture-baseline.json` (`[]`) an (nicht committen). **Nicht registriert** (in der Live-Liste nicht vorhanden, obwohl die Console-Klassen im Vendor teils existieren, daher hier entfernt): `code:phpmd`, `dev:dependency:*`, `dev:composer:*`, `dev:module:create`, `dev:module:bridge:create`, `dev:plugin-usage:find`, `dev:dependency-violation:find`, `code:constraint:modules`.
+> Status: Release 202610.0 (commit d45396b8). Configuration files, sniffs and rules read; docs `code-architecture-guide` only fetched as a short version, `code-quality` only navigation, detailed docs of the tools (`dg/dev/sdks/sdk/development-tools/*`) not fetched: `[code-verified, docs not cross-checked]`. Console commands were executed in the container `[live verified (202610.0)]` (real runs and `-d` dry runs that show the actual invocations). **Important:** for `code:sniff:style` and `code:sniff:architecture`, `-m|--module` means **core/vendor modules** (`Spryker.Kernel`); `-m Pyz.ProductBadge` runs with the core ruleset on `vendor/pyz/productbadge` and fails (`The file "/data/vendor/pyz/console/" does not exist`, exit 3, or "No module(s) found", exit 1). **Project code is checked via the path argument:** `code:sniff:style src/Pyz/Zed/ProductBadge` and `code:sniff:architecture -p 1 src/Pyz/Zed/ProductBadge`. For `code:phpstan`, by contrast, `-m ProductBadge` (without organization) is correct: it analyzes `src/Pyz/{Yves,Zed,Glue}/ProductBadge`; `-m Pyz.X` fails there with `DirectoryNotFoundException`. `code:sniff:architecture` without `-d` creates an `architecture-baseline.json` (`[]`) in the project root (do not commit). **Not registered** (not present in the live list, although some of the console classes exist in vendor, therefore removed here): `code:phpmd`, `dev:dependency:*`, `dev:composer:*`, `dev:module:create`, `dev:module:bridge:create`, `dev:plugin-usage:find`, `dev:dependency-violation:find`, `code:constraint:modules`.
 
-## Zweck
+## Purpose
 
-Welche Qualitätswerkzeuge im Projekt laufen (PHPStan, Code Sniffer, Architecture Sniffer), wie sie konfiguriert sind, welche Architektur- und Namensregeln sie durchsetzen und in welcher Reihenfolge man sie vor einem Commit ausführt.
+Which quality tools run in the project (PHPStan, Code Sniffer, Architecture Sniffer), how they are configured, which architecture and naming rules they enforce, and in which order to run them before a commit.
 
-## Konzepte
+## Concepts
 
-**Tools** (alle über `spryker/development`, `require-dev`, `composer.json` Z. 278-286):
+**Tools** (all via `spryker/development`, `require-dev`, `composer.json` lines 278-286):
 
-| Tool | Kommando | Paket | Projektdatei |
+| Tool | Command | Package | Project file |
 |---|---|---|---|
 | PHPStan | `code:phpstan` | `phpstan/phpstan 2.1.39`, `spryker-sdk/phpstan-spryker ^0.5.1` | `phpstan.neon`, `phpstan-bootstrap.php` |
 | Code Sniffer (PHPCS) | `code:sniff:style` | `spryker/code-sniffer ^0.17.36` | `phpcs.xml` |
-| Architecture Sniffer (PHPMD) | `code:sniff:architecture` | `spryker/architecture-sniffer ^0.6.1` | keine, Ruleset im Vendor |
+| Architecture Sniffer (PHPMD) | `code:sniff:architecture` | `spryker/architecture-sniffer ^0.6.1` | none, ruleset in vendor |
 
-Pipeline-Reihenfolge `config/install/sniffs.yml`: Abschnitt `generate` (Transfers, DataBuilders, IDE-Autocompletion, Scope-Collection-Datei; **mit `excluded: true` markiert**, läuft also nicht automatisch mit), dann `sniff` (phpstan → propel-schema-validate → transfer-validate → code-style-sniff → architecture-sniff).
+Pipeline order `config/install/sniffs.yml`: section `generate` (Transfers, DataBuilders, IDE autocompletion, scope collection file; **marked with `excluded: true`**, so it does not run automatically), then `sniff` (phpstan → propel-schema-validate → transfer-validate → code-style-sniff → architecture-sniff).
 
-**PHPStan.** `phpstan.neon`: `vendor/spryker-sdk/phpstan-spryker/extension.neon` + `bleedingEdge.neon`, `level: 6`, `paths: src/`, `excludePaths: src/Generated/*, src/Orm/*`, `bootstrapFiles: phpstan-bootstrap.php`, `reportUnmatchedIgnoredErrors: false`, `dynamicConstantNames` (APPLICATION, APPLICATION_ENV, APPLICATION_STORE, APPLICATION_CODE_BUCKET), wenige `ignoreErrors`. `phpstan-bootstrap.php` definiert die `APPLICATION*`-Konstanten und lädt `src/Generated/{Client,Service,Yves}/Ide/AutoCompletion.php`: Vor PHPStan müssen `transfer:generate` und `dev:ide-auto-completion:generate` gelaufen sein (Composer-Script `phpstan-setup`). `phpstan-spryker` löst die „magischen“ Methoden `getFacade()`, `getFactory()`, `getConfig()`, `getRepository()`, `getEntityManager()`, `getQueryContainer()`, `getClient()` auf; fehlt die `@method`-Annotation im Klassen-Docblock, meldet `DynamicMethodMissingPhpDocAnnotationRule`.
+**PHPStan.** `phpstan.neon`: `vendor/spryker-sdk/phpstan-spryker/extension.neon` + `bleedingEdge.neon`, `level: 6`, `paths: src/`, `excludePaths: src/Generated/*, src/Orm/*`, `bootstrapFiles: phpstan-bootstrap.php`, `reportUnmatchedIgnoredErrors: false`, `dynamicConstantNames` (APPLICATION, APPLICATION_ENV, APPLICATION_STORE, APPLICATION_CODE_BUCKET), a few `ignoreErrors`. `phpstan-bootstrap.php` defines the `APPLICATION*` constants and loads `src/Generated/{Client,Service,Yves}/Ide/AutoCompletion.php`: `transfer:generate` and `dev:ide-auto-completion:generate` must have run before PHPStan (Composer script `phpstan-setup`). `phpstan-spryker` resolves the "magic" methods `getFacade()`, `getFactory()`, `getConfig()`, `getRepository()`, `getEntityManager()`, `getQueryContainer()`, `getClient()`; if the `@method` annotation is missing in the class docblock, `DynamicMethodMissingPhpDocAnnotationRule` reports it.
 
-**Welches Level gilt?** Mehrere Quellen: `phpstan.neon` und Composer-Script `phpstan` (`-l 6`), CI (`.github/workflows/ci.yml` Z. 160-161, `-l 6`), `DevelopmentConfig::getPhpstanLevel()` im Core 7 (Docblock empfiehlt 8). `PhpstanRunner::getDefaultLevel()` nimmt zuerst das Level aus der `phpstan.neon` des Pfads, dann `phpstan.json`, dann den Config-Fallback: `code:phpstan` nutzt im Projekt Level 6, außer `-l` wird übergeben. Der Runner ruft intern `php -d memory_limit=... vendor/bin/phpstan analyze --memory-limit=4000M --no-progress -c <cfg> <path> -l <level>`.
+**Which level applies?** Several sources: `phpstan.neon` and Composer script `phpstan` (`-l 6`), CI (`.github/workflows/ci.yml` lines 160-161, `-l 6`), `DevelopmentConfig::getPhpstanLevel()` in the core 7 (docblock recommends 8). `PhpstanRunner::getDefaultLevel()` first takes the level from the `phpstan.neon` of the path, then `phpstan.json`, then the config fallback: `code:phpstan` uses level 6 in the project unless `-l` is passed. Internally the runner calls `php -d memory_limit=... vendor/bin/phpstan analyze --memory-limit=4000M --no-progress -c <cfg> <path> -l <level>`.
 
-**Code Sniffer.** `phpcs.xml`: `php_version 80313`, prüft `src/`, `config/`, `tests/`, schließt Generated, `src/Orm` (Base/Map/Propel) und Test-Output aus, erbt `vendor/spryker/code-sniffer/Spryker/ruleset.xml`. Deaktiviert u. a. `Spryker.Commenting.DocBlock`, `DocBlockConst`, `InlineDocBlock`, `DocBlockApiAnnotation`, `DocBlockReturnVoid`, `DisallowCloakingCheck`, `DisallowNullSafeObjectOperator`; `Spryker.Internal.SprykerDisallowFunctions` wird mit `phpVersion=8.3` wieder aktiv (verhindert PHP-8.4-Funktionen). Projektspezifisch: `Spryker.Namespaces.SprykerNamespace` mit `namespace=Pyz`; zusätzliche Slevomat-Sniffs (`DeclareStrictTypes`, `ReturnTypeHint`, `PropertyTypeHint`, `RequireTrailingCommaInDeclaration/ClosureUse`, `UnusedVariable`, `UnusedParameter`, `EarlyExit`, `DisallowEqualOperators` u. a.). Katalog: `vendor/spryker/code-sniffer/docs/sniffs.md`. Das Projekt überschreibt in `src/Pyz/Zed/Development/DevelopmentConfig.php` nur `getCodingStandard()`.
+**Code Sniffer.** `phpcs.xml`: `php_version 80313`, checks `src/`, `config/`, `tests/`, excludes Generated, `src/Orm` (Base/Map/Propel) and test output, inherits `vendor/spryker/code-sniffer/Spryker/ruleset.xml`. Disables among others `Spryker.Commenting.DocBlock`, `DocBlockConst`, `InlineDocBlock`, `DocBlockApiAnnotation`, `DocBlockReturnVoid`, `DisallowCloakingCheck`, `DisallowNullSafeObjectOperator`; `Spryker.Internal.SprykerDisallowFunctions` is re-enabled with `phpVersion=8.3` (prevents PHP 8.4 functions). Project-specific: `Spryker.Namespaces.SprykerNamespace` with `namespace=Pyz`; additional Slevomat sniffs (`DeclareStrictTypes`, `ReturnTypeHint`, `PropertyTypeHint`, `RequireTrailingCommaInDeclaration/ClosureUse`, `UnusedVariable`, `UnusedParameter`, `EarlyExit`, `DisallowEqualOperators` among others). Catalog: `vendor/spryker/code-sniffer/docs/sniffs.md`. In `src/Pyz/Zed/Development/DevelopmentConfig.php` the project only overrides `getCodingStandard()`.
 
-**Architecture Sniffer.** PHPMD mit eigenen Regeln: `DevelopmentConfig::getArchitectureSnifferCommand()` baut `php -d error_reporting=E_ALL&~E_DEPRECATED vendor/bin/phpmd <path> xml <ruleset>`. Core-Ruleset `vendor/spryker/architecture-sniffer/src/ruleset.xml` (Yves/Client/Common/Shared/Zed/Service), Projekt-Ruleset `vendor/spryker/architecture-sniffer/src/Project/ruleset.xml` (enthält u. a. `ProjectNoBridgeRule`, schließt `*DataImport*`, `*/Orm/*`, `*/Generated/*` und Example-Module aus). Priorität Standard 2, Option `-p 1|2|3`. **Welches Ruleset läuft:** `code:sniff:architecture` nutzt standardmäßig das **Core-Ruleset** (`DevelopmentConfig::getArchitectureSnifferRuleset()` liefert `…/architecture-sniffer/src/ruleset.xml`; das Projekt überschreibt die Methode in `src/Pyz/Zed/Development/DevelopmentConfig.php` nicht). Live per Dry-Run belegt: `php -d error_reporting=E_ALL&~E_DEPRECATED vendor/bin/phpmd /data/src/ xml /data/vendor/spryker/architecture-sniffer/src/ruleset.xml --minimumpriority 2`. Die CI ruft ebenfalls das Core-Ruleset. Das **Project-Ruleset** (und damit `ProjectNoBridgeRule`) wird dadurch **nicht** geprüft; man ruft es explizit auf: `vendor/bin/phpmd src/Pyz text vendor/spryker/architecture-sniffer/src/Project/ruleset.xml`.
+**Architecture Sniffer.** PHPMD with custom rules: `DevelopmentConfig::getArchitectureSnifferCommand()` builds `php -d error_reporting=E_ALL&~E_DEPRECATED vendor/bin/phpmd <path> xml <ruleset>`. Core ruleset `vendor/spryker/architecture-sniffer/src/ruleset.xml` (Yves/Client/Common/Shared/Zed/Service), project ruleset `vendor/spryker/architecture-sniffer/src/Project/ruleset.xml` (contains among others `ProjectNoBridgeRule`, excludes `*DataImport*`, `*/Orm/*`, `*/Generated/*` and example modules). Default priority 2, option `-p 1|2|3`. **Which ruleset runs:** `code:sniff:architecture` uses the **core ruleset** by default (`DevelopmentConfig::getArchitectureSnifferRuleset()` returns `…/architecture-sniffer/src/ruleset.xml`; the project does not override the method in `src/Pyz/Zed/Development/DevelopmentConfig.php`). Proven live via dry run: `php -d error_reporting=E_ALL&~E_DEPRECATED vendor/bin/phpmd /data/src/ xml /data/vendor/spryker/architecture-sniffer/src/ruleset.xml --minimumpriority 2`. CI also calls the core ruleset. The **project ruleset** (and thus `ProjectNoBridgeRule`) is therefore **not** checked; you call it explicitly: `vendor/bin/phpmd src/Pyz text vendor/spryker/architecture-sniffer/src/Project/ruleset.xml`.
 
-Regeln (Klassen unter `vendor/spryker/architecture-sniffer/src/`):
-- `Project/Common/ProjectNoBridgeRule`: „Project should not use and depend on Bridge pattern“ (Klassen `*Bridge` und Abhängigkeiten darauf werden gemeldet; im Release gibt es in `src/Pyz` keine Bridge-Klasse). Greift nur im Project-Ruleset (siehe oben), nicht bei `code:sniff:architecture` mit Standard-Konfiguration. Das widerspricht der Doku-Praxis; für Projektcode gilt die Konvention des Releases: Facade/Client direkt über den Locator im DependencyProvider.
-- `Project/Common/InstanceResolvingRule` (Facade/Client/Factory nie mit `new`), `LocatorInDependencyProviderOnlyRule` (`getLocator()` nur in `*DependencyProvider`), `SingletonInstanceInDependencyProviderOnlyRule`, `LayerAccessRule`, `DisallowedModuleNameRule` (Modulname ohne `test`, `dummy`, `example`, `antelope`), `TooManyPublicMethodsRule`.
+Rules (classes under `vendor/spryker/architecture-sniffer/src/`):
+- `Project/Common/ProjectNoBridgeRule`: "Project should not use and depend on Bridge pattern" (classes `*Bridge` and dependencies on them are reported; in the release there is no bridge class in `src/Pyz`). Only applies in the project ruleset (see above), not with `code:sniff:architecture` in the default configuration. This contradicts docs practice; for project code the convention of the release applies: Facade/Client directly via the locator in the DependencyProvider.
+- `Project/Common/InstanceResolvingRule` (never create Facade/Client/Factory with `new`), `LocatorInDependencyProviderOnlyRule` (`getLocator()` only in `*DependencyProvider`), `SingletonInstanceInDependencyProviderOnlyRule`, `LayerAccessRule`, `DisallowedModuleNameRule` (module name without `test`, `dummy`, `example`, `antelope`), `TooManyPublicMethodsRule`.
 - `Project/Zed/{OrmAccessRule,OrmNewEntityNotInCommunicationRule,RepositoryReadOnlyRule,RestrictedOrmQueryAccessInZedPersistenceRule}`.
-- `Common/Factory/*`: Factory-Methoden `create*`/`get*`, ein `new` pro create-Methode, keine Schleifen/Logik. `Common/Plugin/{PluginSuffixRule,PluginInterfaceSuffixRule}`.
-- `Zed/Business/Facade/*` (`AllMethodsPublicInFacadeRule`, `FacadeNoLogicRule`, `FacadeInterfaceRule`, `FacadeArgumentsNotAllowedUseEntityTransferRule`), `Zed/Dependency/Bridge/*`, `Zed/DependencyProvider/*`, `Zed/Persistence/*` (`SpyEntityUsageRule`, Repository-Regeln).
+- `Common/Factory/*`: factory methods `create*`/`get*`, one `new` per create method, no loops/logic. `Common/Plugin/{PluginSuffixRule,PluginInterfaceSuffixRule}`.
+- `Zed/Business/Facade/*` (`AllMethodsPublicInFacadeRule`, `FacadeNoLogicRule`, `FacadeInterfaceRule`, `FacadeArgumentsNotAllowedUseEntityTransferRule`), `Zed/Dependency/Bridge/*`, `Zed/DependencyProvider/*`, `Zed/Persistence/*` (`SpyEntityUsageRule`, Repository rules).
 
-**Architekturregeln** (Doku `code-architecture-guide`, Kurzfassung; am Code geprüft; Hintergrund → [Architektur](01-architektur.md)):
-1. Zed-Schichten Communication → Business → Persistence; kein Direktzugriff Communication→Persistence/Propel.
-2. Modulübergreifend nur über Facade (Zed) bzw. Client (Yves/Glue), nie über interne Models, Repositories oder Propel-Queries fremder Module.
-3. Objekte nur in Factories erzeugen; Fremdabhängigkeiten holt die Factory per `getProvidedDependency()` aus dem DependencyProvider (→ [Projektmodul](02-projektmodul.md)).
-4. Facade ohne Logik, nur Delegation; Facade-Methoden bekommen/liefern Transfers.
-5. Core-Erweiterung über Plugins/Extension Points/Config, Vererbung als Replacement (→ [Core erweitern](03-core-erweitern.md)).
-6. Projekt-Ebene ohne Bridges (nur vom Project-Ruleset geprüft, siehe oben).
+**Architecture rules** (docs `code-architecture-guide`, short version; checked against the code; background → [Architecture](01-architecture.md)):
+1. Zed layers Communication → Business → Persistence; no direct access Communication→Persistence/Propel.
+2. Across modules only via Facade (Zed) or Client (Yves/Glue), never via internal models, repositories or Propel queries of other modules.
+3. Create objects only in factories; the Factory fetches foreign dependencies via `getProvidedDependency()` from the DependencyProvider (→ [Project module](02-project-module.md)).
+4. Facade without logic, delegation only; Facade methods receive/return Transfers.
+5. Core extension via plugins/extension points/config, inheritance as replacement (→ [Extending the core](03-extending-the-core.md)).
+6. Project level without bridges (only checked by the project ruleset, see above).
 
-**Namens- und Dateikonventionen** (aus Sniffs/Regeln): Datei = Klassenname (`Spryker.Classes.ClassFileName`), Namespace-Wurzel `Pyz`, keine Pyz-Referenzen im Core; Interfaces `…Interface`, Plugins `…Plugin`, Plugin-Interfaces `…PluginInterface`, Factory-Methoden `create…`/`get…`, DependencyProvider-Methoden `add…`/`provide…`, Konstanten SCREAMING_SNAKE. Jede Datei beginnt mit Lizenz-Docblock und `declare(strict_types = 1);` (mit Leerzeichen um `=`), `array<…>` statt `Type[]`, Rückgabe-/Property-Typen Pflicht, `@method`-Annotationen für magische Zugriffe (`MethodAnnotation/{Facade,Factory,Config,Repository,EntityManager,QueryContainer}MethodAnnotationSniff`). Suppression: `// phpcs:ignore <Sniff>`, `@SuppressWarnings(PHPMD.<Regel>)`, `@phpstan-ignore <id>`; `code:sniff:architecture -s` meldet auch unterdrückte Stellen.
+**Naming and file conventions** (from sniffs/rules): file = class name (`Spryker.Classes.ClassFileName`), namespace root `Pyz`, no Pyz references in the core; interfaces `…Interface`, plugins `…Plugin`, plugin interfaces `…PluginInterface`, factory methods `create…`/`get…`, DependencyProvider methods `add…`/`provide…`, constants SCREAMING_SNAKE. Every file starts with a license docblock and `declare(strict_types = 1);` (with spaces around `=`), `array<…>` instead of `Type[]`, return/property types mandatory, `@method` annotations for magic accesses (`MethodAnnotation/{Facade,Factory,Config,Repository,EntityManager,QueryContainer}MethodAnnotationSniff`). Suppression: `// phpcs:ignore <Sniff>`, `@SuppressWarnings(PHPMD.<Rule>)`, `@phpstan-ignore <id>`; `code:sniff:architecture -s` also reports suppressed locations.
 
-## Anleitung
+## Instructions
 
-1. Generieren: `docker/sdk cli console transfer:generate` und `docker/sdk cli console dev:ide-auto-completion:generate`.
-2. Style: `docker/sdk cli console code:sniff:style -f <pfad>` (Fix), danach ohne `-f` erneut prüfen.
-3. PHPStan: `docker/sdk cli php -d memory_limit=1024M vendor/bin/console code:phpstan` bzw. `docker/sdk cli composer phpstan` (wie CI); für neuen Code strenger mit `-l 7`/`-l 8` und `-m <Modul>`.
-4. Architektur: `docker/sdk cli console code:sniff:architecture -p 1 -v` (Core-Ruleset); CI-Parität: `vendor/bin/phpmd src/ text vendor/spryker/architecture-sniffer/src/ruleset.xml --minimumpriority 2`. Zusätzlich Project-Ruleset (Bridges, Projektregeln): `docker/sdk cli vendor/bin/phpmd src/Pyz text vendor/spryker/architecture-sniffer/src/Project/ruleset.xml`.
-5. Weitere Prüfungen der Pipeline: `propel:schema:validate`, `transfer:validate`.
-6. Suppressions begründen und minimal halten; nie Generated/Orm-Pfade von Hand sniffen.
-7. Evaluator zusätzlich (→ [Upgradability](28-upgradability.md)).
+1. Generate: `docker/sdk cli console transfer:generate` and `docker/sdk cli console dev:ide-auto-completion:generate`.
+2. Style: `docker/sdk cli console code:sniff:style -f <path>` (fix), then check again without `-f`.
+3. PHPStan: `docker/sdk cli php -d memory_limit=1024M vendor/bin/console code:phpstan` or `docker/sdk cli composer phpstan` (like CI); for new code stricter with `-l 7`/`-l 8` and `-m <Module>`.
+4. Architecture: `docker/sdk cli console code:sniff:architecture -p 1 -v` (core ruleset); CI parity: `vendor/bin/phpmd src/ text vendor/spryker/architecture-sniffer/src/ruleset.xml --minimumpriority 2`. Additionally the project ruleset (bridges, project rules): `docker/sdk cli vendor/bin/phpmd src/Pyz text vendor/spryker/architecture-sniffer/src/Project/ruleset.xml`.
+5. Further checks of the pipeline: `propel:schema:validate`, `transfer:validate`.
+6. Justify suppressions and keep them minimal; never sniff Generated/Orm paths by hand.
+7. Additionally the Evaluator (→ [Upgradability](28-upgradability.md)).
 
-Optionen laut Console-Klassen:
+Options according to the console classes:
 ```
 code:sniff:style         [path] -m|--module  -s|--sniffs  -l|--level  -e|--explain  -d|--dry-run  -f|--fix
 code:phpstan             -m|--module  -f|--format [text,xml,json,md]  -d|--dry-run  -l|--level  -c|--is-mergable-config  -o|--offset
-code:sniff:architecture  [path] -m|--module  -p|--priority [1|2|3, default 2]  -s|--strict  -d|--dry-run  -u|--update-baseline  (-v zeigt Verstöße)
+code:sniff:architecture  [path] -m|--module  -p|--priority [1|2|3, default 2]  -s|--strict  -d|--dry-run  -u|--update-baseline  (-v shows violations)
 ```
-Befehle (alle ausgeführt `[live verifiziert (202610.0)]`; `src/Pyz/Zed/Console` lief mit `phpcs`, `phpstan` Level 6 und `phpmd` Project-Ruleset ohne Befund):
+Commands (all executed `[live verified (202610.0)]`; `src/Pyz/Zed/Console` ran with `phpcs`, `phpstan` level 6 and `phpmd` project ruleset without findings):
 ```
 docker/sdk cli console transfer:generate
 docker/sdk cli console dev:ide-auto-completion:generate
 docker/sdk cli console code:sniff:style
-docker/sdk cli console code:sniff:style src/Pyz/Zed/ProductBadge       # Pfad-Argument für Projektcode (kein -m Pyz.X)
+docker/sdk cli console code:sniff:style src/Pyz/Zed/ProductBadge       # path argument for project code (no -m Pyz.X)
 docker/sdk cli console code:sniff:style -f src/Pyz/Zed/ProductBadge    # -f = --fix
 docker/sdk cli console code:sniff:style -e
 docker/sdk cli console code:phpstan -l 7 -m ProductBadge
@@ -75,11 +75,11 @@ docker/sdk cli console transfer:validate
 docker/sdk cli console dev:ide-auto-completion:remove
 docker/sdk cli vendor/bin/phpmd src/Pyz text vendor/spryker/architecture-sniffer/src/Project/ruleset.xml
 ```
-Weiteres registriertes Development-Kommando: `dev:plugin-usage:dump` (Plugin-Nutzung je DependencyProvider). Die Befehle `code:phpmd`, `dev:dependency:*`, `dev:composer:*` und `dev:module:create` sind im Release **nicht registriert** (nicht aufrufen).
+Further registered development command: `dev:plugin-usage:dump` (plugin usage per DependencyProvider). The commands `code:phpmd`, `dev:dependency:*`, `dev:composer:*` and `dev:module:create` are **not registered** in the release (do not call them).
 
-## Beispiele
+## Examples
 
-**Projekt-Konfiguration per Vererbung** (`src/Pyz/Zed/Development/DevelopmentConfig.php`, vollständig, Release):
+**Project configuration via inheritance** (`src/Pyz/Zed/Development/DevelopmentConfig.php`, complete, release):
 ```php
 <?php
 
@@ -103,7 +103,7 @@ class DevelopmentConfig extends SprykerDevelopmentConfig
 }
 ```
 
-**Konforme Business-Factory mit `@method`-Annotationen** (`src/Pyz/Zed/ExampleProductSalePage/Business/ExampleProductSalePageBusinessFactory.php`, Release):
+**Compliant business factory with `@method` annotations** (`src/Pyz/Zed/ExampleProductSalePage/Business/ExampleProductSalePageBusinessFactory.php`, release):
 ```php
 /**
  * @method \Pyz\Zed\ExampleProductSalePage\Persistence\ExampleProductSalePageQueryContainerInterface getQueryContainer()
@@ -117,43 +117,43 @@ class ExampleProductSalePageBusinessFactory extends AbstractBusinessFactory
     }
 }
 ```
-Prüfen: genau ein `new` in einer `create*`-Methode, Rückgabe als Interface, keine Logik; fehlte die `@method`-Zeile, melden `phpstan-spryker` bzw. das MethodAnnotation-Sniff einen Fehler. Das Beispielmodul nutzt noch QueryContainer (Legacy zugunsten Repository/EntityManager, → [Propel](05-propel-persistenz.md)).
+Check: exactly one `new` in a `create*` method, return as interface, no logic; if the `@method` line were missing, `phpstan-spryker` or the MethodAnnotation sniff would report an error. The example module still uses a QueryContainer (legacy in favor of Repository/EntityManager, → [Propel](05-propel-persistence.md)).
 
-**Locator nur im DependencyProvider** (`src/Pyz/Zed/Customer/CustomerDependencyProvider.php`, Auszug): `$container->getLocator()->sales()->facade()` in `addFacadeSales()` ist der einzige erlaubte Ort (`LocatorInDependencyProviderOnlyRule`).
+**Locator only in the DependencyProvider** (`src/Pyz/Zed/Customer/CustomerDependencyProvider.php`, excerpt): `$container->getLocator()->sales()->facade()` in `addFacadeSales()` is the only allowed place (`LocatorInDependencyProviderOnlyRule`).
 
-**Erweiterung per Factory-Vererbung** (`src/Pyz/Yves/CartPage/CartPageFactory.php`): `class CartPageFactory extends SprykerShop\Yves\CartPage\CartPageFactory` mit zusätzlicher `create…`-Methode und Interface-Rückgabe.
+**Extension via factory inheritance** (`src/Pyz/Yves/CartPage/CartPageFactory.php`): `class CartPageFactory extends SprykerShop\Yves\CartPage\CartPageFactory` with an additional `create…` method and interface return type.
 
-**Suppression im Release:** `// phpcs:ignore SlevomatCodingStandard.Functions.UnusedParameter` (`src/Pyz/Zed/Oms/OmsDependencyProvider.php`), `@SuppressWarnings(PHPMD.<Regel>)` (`src/Pyz/Zed/DataImport/DataImportConfig.php`).
+**Suppression in the release:** `// phpcs:ignore SlevomatCodingStandard.Functions.UnusedParameter` (`src/Pyz/Zed/Oms/OmsDependencyProvider.php`), `@SuppressWarnings(PHPMD.<Rule>)` (`src/Pyz/Zed/DataImport/DataImportConfig.php`).
 
-## Fallstricke
+## Pitfalls
 
-- PHPStan „Call to an undefined method getFacade()/getConfig()“: `@method` fehlt oder Autocompletion nicht generiert.
-- PHPStan findet Transfers nicht: `transfer:generate` nicht gelaufen (`src/Generated` ist ausgeschlossen, aber zum Auflösen nötig).
-- Speicherfehler: `php -d memory_limit=1024M` bzw. Runner-Default 4000M.
-- Level-Verwirrung: neon 6 ≠ Core-Fallback 7; neuer Code sollte mindestens Level 6, besser 7/8 bestehen (Empfehlung; Docblock der Core-Config empfiehlt 8).
-- `ignoreErrors` mit `reportUnmatchedIgnoredErrors: false` verstecken tote Ignores; nicht für neue Verstöße benutzen.
-- `new` auf Facade/Client/Factory (`InstanceResolvingRule`); `getLocator()` außerhalb DependencyProvider; Propel-Query im Business-/Communication-Layer; `new SpyEntity` in Communication.
-- Modulname mit „Example“/„Test“ (`DisallowedModuleNameRule`); die Demo-Module `Example*` sind nur im Project-Ruleset ausgeschlossen.
-- Bridges im Projekt vermeiden (direkt Facade/Client des Core-Moduls im DependencyProvider holen, Factory-Getter auf das Interface des Fremdmoduls typisieren). `code:sniff:architecture` (Core-Ruleset) meldet Bridges **nicht**; dafür das Project-Ruleset per `phpmd` aufrufen (siehe Architecture Sniffer). Die Projekt-Templates dieses Skills enthalten keine Bridges.
-- CI-Parität: Style, PHPMD (minimumpriority 2), PHPStan Level 6, bei Release-PRs nach `master` zusätzlich der Evaluator; lokal dieselbe Folge fahren.
-- Upgrader-Antipatterns (Core-Dateien in vendor ändern, Core-Methoden kopieren statt `parent::`, Core-Models überschreiben statt Plugin) → [Core erweitern](03-core-erweitern.md), [Upgradability](28-upgradability.md).
+- PHPStan "Call to an undefined method getFacade()/getConfig()": `@method` missing or autocompletion not generated.
+- PHPStan does not find Transfers: `transfer:generate` has not run (`src/Generated` is excluded, but needed for resolution).
+- Memory errors: `php -d memory_limit=1024M` or the runner default 4000M.
+- Level confusion: neon 6 ≠ core fallback 7; new code should pass at least level 6, better 7/8 (recommendation; the docblock of the core config recommends 8).
+- `ignoreErrors` with `reportUnmatchedIgnoredErrors: false` hide dead ignores; do not use them for new violations.
+- `new` on Facade/Client/Factory (`InstanceResolvingRule`); `getLocator()` outside the DependencyProvider; Propel query in the business/communication layer; `new SpyEntity` in Communication.
+- Module name with "Example"/"Test" (`DisallowedModuleNameRule`); the demo modules `Example*` are only excluded in the project ruleset.
+- Avoid bridges in the project (fetch the core module's Facade/Client directly in the DependencyProvider, type the factory getter to the interface of the foreign module). `code:sniff:architecture` (core ruleset) does **not** report bridges; for that, call the project ruleset via `phpmd` (see Architecture Sniffer). The project templates of this skill contain no bridges.
+- CI parity: style, PHPMD (minimumpriority 2), PHPStan level 6, for release PRs to `master` additionally the Evaluator; run the same sequence locally.
+- Upgrader anti-patterns (changing core files in vendor, copying core methods instead of `parent::`, overriding core models instead of a plugin) → [Extending the core](03-extending-the-core.md), [Upgradability](28-upgradability.md).
 
-## Checkliste
+## Checklist
 
-- [ ] Lizenzblock + `declare(strict_types = 1);`, Namespace `Pyz\…`, Dateiname = Klassenname
-- [ ] Alle Parameter/Rückgaben/Properties typisiert, `array<…>`-Docblocks
-- [ ] `@method`-Annotationen für Facade/Factory/Config/Client vorhanden
-- [ ] Objekte nur in Factory (`create*`), Fremdabhängigkeiten über DependencyProvider, Locator nur dort
-- [ ] Keine Bridges im Projekt, Schichtgrenzen und Facade/Client-Zugriff eingehalten
-- [ ] `transfer:generate` + `dev:ide-auto-completion:generate`, dann `code:sniff:style -f`, `code:phpstan`, `code:sniff:architecture` und `phpmd` mit Project-Ruleset
-- [ ] Suppressions begründet und minimal
+- [ ] License block + `declare(strict_types = 1);`, namespace `Pyz\…`, file name = class name
+- [ ] All parameters/returns/properties typed, `array<…>` docblocks
+- [ ] `@method` annotations for Facade/Factory/Config/Client present
+- [ ] Objects only in the Factory (`create*`), foreign dependencies via DependencyProvider, locator only there
+- [ ] No bridges in the project, layer boundaries and Facade/Client access respected
+- [ ] `transfer:generate` + `dev:ide-auto-completion:generate`, then `code:sniff:style -f`, `code:phpstan`, `code:sniff:architecture` and `phpmd` with the project ruleset
+- [ ] Suppressions justified and minimal
 
-## Quellen
+## Sources
 
-Doku (Basis https://docs.spryker.com/docs/): `dg/dev/guidelines/coding-guidelines/code-architecture-guide.html` (abgerufen, gekürzt), `…/code-quality.html` (nur Navigation); laut Rechercheplan nicht abgerufen: `…/coding-guidelines.html`, `…/code-style-guide.html`, `dg/dev/architecture/architectural-convention-reference.html`, `architecture-as-code.html`, `dg/dev/sdks/sdk/development-tools/{phpstan,code-sniffer,architecture-sniffer}`.
+Docs (base https://docs.spryker.com/docs/): `dg/dev/guidelines/coding-guidelines/code-architecture-guide.html` (fetched, shortened), `…/code-quality.html` (navigation only); not fetched: `…/coding-guidelines.html`, `…/code-style-guide.html`, `dg/dev/architecture/architectural-convention-reference.html`, `architecture-as-code.html`, `dg/dev/sdks/sdk/development-tools/{phpstan,code-sniffer,architecture-sniffer}`.
 
-Code: `phpstan.neon`, `phpstan-bootstrap.php`, `phpcs.xml`, `composer.json` (Z. 278-286, 365-381), `config/install/sniffs.yml`, `.github/workflows/ci.yml` (Z. 154-164), `src/Pyz/Zed/Development/DevelopmentConfig.php`, `vendor/spryker/development/src/Spryker/Zed/Development/{DevelopmentConfig.php,Communication/Console/Code*Console.php,Business/Phpstan/PhpstanRunner.php}`, `vendor/spryker-sdk/phpstan-spryker/`, `vendor/spryker/architecture-sniffer/src/{ruleset.xml,Project/**,Zed/**,Common/**}`, `vendor/spryker/code-sniffer/{Spryker/ruleset.xml,docs/sniffs.md}`, `src/Pyz/Zed/ExampleProductSalePage/Business/…BusinessFactory.php`, `src/Pyz/Yves/CartPage/CartPageFactory.php`, `src/Pyz/Zed/Customer/CustomerDependencyProvider.php`.
+Code: `phpstan.neon`, `phpstan-bootstrap.php`, `phpcs.xml`, `composer.json` (lines 278-286, 365-381), `config/install/sniffs.yml`, `.github/workflows/ci.yml` (lines 154-164), `src/Pyz/Zed/Development/DevelopmentConfig.php`, `vendor/spryker/development/src/Spryker/Zed/Development/{DevelopmentConfig.php,Communication/Console/Code*Console.php,Business/Phpstan/PhpstanRunner.php}`, `vendor/spryker-sdk/phpstan-spryker/`, `vendor/spryker/architecture-sniffer/src/{ruleset.xml,Project/**,Zed/**,Common/**}`, `vendor/spryker/code-sniffer/{Spryker/ruleset.xml,docs/sniffs.md}`, `src/Pyz/Zed/ExampleProductSalePage/Business/…BusinessFactory.php`, `src/Pyz/Yves/CartPage/CartPageFactory.php`, `src/Pyz/Zed/Customer/CustomerDependencyProvider.php`.
 
-Verweise: [Architektur](01-architektur.md), [Projektmodul](02-projektmodul.md), [Core erweitern](03-core-erweitern.md), [Tests](26-tests.md), [Upgradability](28-upgradability.md).
+References: [Architecture](01-architecture.md), [Project module](02-project-module.md), [Extending the core](03-extending-the-core.md), [Tests](26-tests.md), [Upgradability](28-upgradability.md).
 
-Deprecations/Abweichungen: Level-Abweichung (neon 6 / CI 6 / Core 7 / Docblock 8); CI-Ruleset und Konsole nutzen beide das Core-Ruleset (live belegt); `QueryContainerMethodAnnotationSniff` existiert, QueryContainer gilt als Legacy; `Feature-Policy`-Header-Hinweise → [Security](21-security-session.md).
+Deprecations/deviations: level deviation (neon 6 / CI 6 / core 7 / docblock 8); CI ruleset and console both use the core ruleset (proven live); `QueryContainerMethodAnnotationSniff` exists, QueryContainer is considered legacy; `Feature-Policy` header notes → [Security](21-security-session.md).

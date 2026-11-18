@@ -1,81 +1,81 @@
-# Publish & Synchronization, Schreibseite (Recherche T-07)
+# Publish & Synchronization, write side
 
-> Status: Release b2b-demo-shop 202610.0 (spryker/event 2.19.0, event-behavior 1.36.0, publisher 1.3.1, publisher-extension 1.0.0, synchronization 1.21.0, synchronization-behavior 1.15.0, synchronization-extension 1.3.0, queue 1.32.0, product-storage 1.58.1). Verhalten am Quellcode geprüft; Doku-Seiten waren abrufbar, vier verwandte Doku-Seiten wurden nicht ausgewertet (siehe Quellen). Die Doku-Seiten `add-publish-events`, `implement-event-trigger-publisher-plugins`, `implement-synchronization-plugins` sind von 2021 und im Stil älter als der Code. `[code-verifiziert, Doku nicht abgeglichen]` bei Details nur am Code. Befehle im Container ausgeführt `[live verifiziert (202610.0)]` (Trigger, Sync, Queue-Worker, Scheduler-Suspend/Resume). Das Lesen (Client) steht in [Client/Storage/Search](08-client-storage-search.md).
+> Status: Release b2b-demo-shop 202610.0 (spryker/event 2.19.0, event-behavior 1.36.0, publisher 1.3.1, publisher-extension 1.0.0, synchronization 1.21.0, synchronization-behavior 1.15.0, synchronization-extension 1.3.0, queue 1.32.0, product-storage 1.58.1). Behavior checked against the source code; docs pages were retrievable, four related docs pages were not evaluated (see Sources). The docs pages `add-publish-events`, `implement-event-trigger-publisher-plugins`, `implement-synchronization-plugins` are from 2021 and older in style than the code. `[code-verified, docs not cross-checked]` for details checked only against the code. Commands executed in the container `[live verified (202610.0)]` (trigger, sync, queue worker, scheduler suspend/resume). Reading (Client) is covered in [Client/Storage/Search](08-client-storage-search.md).
 
-## Zweck
+## Purpose
 
-Schreibpfad von der Entity-Änderung bis Redis/OpenSearch: Entity-Event -> Publisher -> `*_storage`/`*_search`-Tabelle -> Sync-Queue -> Redis bzw. Search. Dazu Re-Generation, Re-Sync, Direct Sync und Debugging. Workerbetrieb und eigene Queues: [Console, Cron, Queue](22-console-cron-queue.md). Propel-Grundlagen: [Propel](05-propel-persistenz.md). Plugin-Stacks allgemein: [Core erweitern](03-core-erweitern.md).
+Write path from the entity change to Redis/OpenSearch: entity event -> publisher -> `*_storage`/`*_search` table -> sync queue -> Redis or search. Plus re-generation, re-sync, direct sync and debugging. Worker operation and custom queues: [Console, Cron, Queue](22-console-cron-queue.md). Propel basics: [Propel](05-propel-persistence.md). Plugin stacks in general: [Extending the core](03-extending-the-core.md).
 
-## Konzepte
+## Concepts
 
-**Ablauf**
-1. **Entity speichern/löschen.** Eine Tabelle mit `<behavior name="event">` löst bei `save()`/`delete()` die Events `Entity.<tabelle>.create|update|delete` aus. Die Änderung landet zunächst in `spy_event_behavior_entity_change`.
-2. **Runtime-Events auslösen.** Am Request-Ende (`EventBehaviorEventDispatcherPlugin`, `KernelEvents::TERMINATE`) bzw. nach einem Konsolenkommando (`EventBehaviorPostHookPlugin::postRun()`) ruft `EventBehaviorFacade::triggerRuntimeEvents()` die Änderungen ab und gibt sie an den `EventFacade`. Beides ist im Projekt registriert (`EventDispatcherDependencyProvider`, `ConsoleDependencyProvider`).
-3. **Event -> Queue.** Publisher-Plugins werden vom `PublisherSubscriber` (`src/Pyz/Zed/Event/EventDependencyProvider.php`) als queued Listener registriert (`addListenerQueued`).
-4. **Queue-Name** (`PublisherEventCollator`): Array-Key des Plugin-Stacks (eigene Queue), sonst `PublisherConfig::getPublishQueueName()` (Pyz: `publish`), sonst `event`.
-5. **Worker -> Publisher.** `QueueDependencyProvider::getProcessorMessagePlugins()` bindet die Queue an `EventQueueMessageProcessorPlugin`. Der `EventQueueConsumer` gruppiert Nachrichten je Listener und Event und ruft `handleBulk()`. Bei Fehlern wird jedes Element einzeln wiederholt, dann Retry-/Error-Queue.
-6. **Writer schreibt die Mirror-Tabelle** (`->save()`).
-7. **Synchronization-Behavior** (`postSave()`/`postDelete()`): erzeugt `key`, packt `data` samt `_timestamp` in eine Sync-Nachricht und sendet sie in `queue_group` bzw. `queue_pool`. Mit Direct Sync stattdessen in einen In-Memory-Buffer.
-8. **Sync-Worker.** `SynchronizationStorageQueueMessageProcessorPlugin` schreibt JSON per StorageClient nach Redis, `SynchronizationSearchQueueMessageProcessorPlugin` nach Elasticsearch/OpenSearch. `OutdatedValidator` verwirft bei mehr als einem Worker veraltete Nachrichten anhand `_timestamp`.
+**Flow**
+1. **Save/delete the entity.** A table with `<behavior name="event">` fires the events `Entity.<table>.create|update|delete` on `save()`/`delete()`. The change first lands in `spy_event_behavior_entity_change`.
+2. **Trigger runtime events.** At the end of the request (`EventBehaviorEventDispatcherPlugin`, `KernelEvents::TERMINATE`) or after a console command (`EventBehaviorPostHookPlugin::postRun()`), `EventBehaviorFacade::triggerRuntimeEvents()` fetches the changes and passes them to the `EventFacade`. Both are registered in the project (`EventDispatcherDependencyProvider`, `ConsoleDependencyProvider`).
+3. **Event -> queue.** Publisher plugins are registered by the `PublisherSubscriber` (`src/Pyz/Zed/Event/EventDependencyProvider.php`) as queued listeners (`addListenerQueued`).
+4. **Queue name** (`PublisherEventCollator`): array key of the plugin stack (custom queue), otherwise `PublisherConfig::getPublishQueueName()` (Pyz: `publish`), otherwise `event`.
+5. **Worker -> publisher.** `QueueDependencyProvider::getProcessorMessagePlugins()` binds the queue to `EventQueueMessageProcessorPlugin`. The `EventQueueConsumer` groups messages per listener and event and calls `handleBulk()`. On errors each element is retried individually, then retry/error queue.
+6. **The writer writes the mirror table** (`->save()`).
+7. **Synchronization behavior** (`postSave()`/`postDelete()`): generates `key`, packs `data` together with `_timestamp` into a sync message and sends it to `queue_group` or `queue_pool`. With direct sync, into an in-memory buffer instead.
+8. **Sync worker.** `SynchronizationStorageQueueMessageProcessorPlugin` writes JSON via the StorageClient to Redis, `SynchronizationSearchQueueMessageProcessorPlugin` to Elasticsearch/OpenSearch. With more than one worker, `OutdatedValidator` discards outdated messages based on `_timestamp`.
 
-**Queue-Wiring (nicht vergessen):** Jede Publish- und Sync-Queue muss in `src/Pyz/Client/RabbitMq/RabbitMqConfig.php` (`getPublishQueueConfiguration()`, `getSynchronizationQueueConfiguration()`) deklariert und in `QueueDependencyProvider::getProcessorMessagePlugins()` einem Processor zugeordnet sein, danach `queue:setup`.
+**Queue wiring (do not forget):** Every publish and sync queue must be declared in `src/Pyz/Client/RabbitMq/RabbitMqConfig.php` (`getPublishQueueConfiguration()`, `getSynchronizationQueueConfiguration()`) and assigned to a processor in `QueueDependencyProvider::getProcessorMessagePlugins()`, then `queue:setup`.
 
-**Bausteine**
-- **Event-Behavior:** Parameter `name` (im Schema eindeutig), `column` (`*` = alle; fehlt `column`, `PropelException`), optional `value`, `operator`, `keep-original`. Event-Namen als Konstanten in der Shared-Config des Moduls. Zusatzwerte im Event (`originalValues`, `additionalValues`) entstehen über die Behavior-Parameter `keep-original="true"` bzw. `keep-additional="true"` am jeweiligen `<parameter>` (`column="*"` = alle Spalten); der Behavior generiert daraus `getOriginalValueColumnNames()`/`getAdditionalValueColumnNames()` in der Entity. Die Methoden werden nicht von Hand überschrieben. Beispiele: `keep-additional` in `src/Pyz/Zed/Availability/Persistence/Propel/Schema/spy_availability.schema.xml`, `keep-original` in `spy_category.schema.xml`.
-- **Publisher-Plugin** (`Communication/Plugin/Publisher/`): `AbstractPlugin` + `Spryker\Zed\PublisherExtension\Dependency\Plugin\PublisherPluginInterface` (`getSubscribedEvents(): array`, `handleBulk(array $eventEntityTransfers, $eventName)` aus `EventBulkHandlerInterface`). Registrierung `Pyz\Zed\Publisher\PublisherDependencyProvider::getPublisherPlugins()` (deklarierter Rückgabetyp `: array`; die Union steht nur im PHPDoc): flache Liste = Default-Queue, `[queueName => [plugins]]` = eigene Publish-Queue.
-- **Publisher-Trigger-Plugin** (Re-Generation): `PublisherTriggerPluginInterface` (extends `EventResourceBulkRepositoryPluginInterface`): `getResourceName()`, `getEventName()`, `getIdColumnName(): ?string`, `getData(int $offset, int $limit): array`. Registrierung `getPublisherTriggerPlugins()`. `getIdColumnName()` im Format `tabelle.spalte`: der Teil nach dem Punkt wird aus `modifiedToArray()` der gelieferten Transfers gelesen und wird zur Event-ID. Die gelieferten Objekte müssen Entity-Transfers sein (`buildQueryFromCriteria(...)->find()` liefert `Spy…EntityTransfer`); auf Business-Transfers gemappte Daten führen zu Fehlern bzw. fehlenden IDs `[live verifiziert (202610.0)]`.
-- **Synchronization-Data-Plugin** (Re-Sync): aktuell `SynchronizationDataBulkRepositoryPluginInterface` (`getData(int $offset, int $limit, array $ids = []): array` mit `SynchronizationDataTransfer[]`, dazu `getResourceName()`, `hasStore()`, `getParams()`, `getQueueName()`, `getSynchronizationQueuePoolName()`). Registrierung `Pyz\Zed\Synchronization\SynchronizationDependencyProvider::getSynchronizationDataPlugins()`. Der Export verwendet `SynchronizationDataTransfer::getKey()` als fertigen Redis-Key.
-- **Synchronization-Behavior-Parameter:**
+**Building blocks**
+- **Event behavior:** parameters `name` (unique within the schema), `column` (`*` = all; if `column` is missing, `PropelException`), optionally `value`, `operator`, `keep-original`. Event names as constants in the module's shared config. Additional values in the event (`originalValues`, `additionalValues`) come from the behavior parameters `keep-original="true"` or `keep-additional="true"` on the respective `<parameter>` (`column="*"` = all columns); from these the behavior generates `getOriginalValueColumnNames()`/`getAdditionalValueColumnNames()` in the entity. The methods are not overridden by hand. Examples: `keep-additional` in `src/Pyz/Zed/Availability/Persistence/Propel/Schema/spy_availability.schema.xml`, `keep-original` in `spy_category.schema.xml`.
+- **Publisher plugin** (`Communication/Plugin/Publisher/`): `AbstractPlugin` + `Spryker\Zed\PublisherExtension\Dependency\Plugin\PublisherPluginInterface` (`getSubscribedEvents(): array`, `handleBulk(array $eventEntityTransfers, $eventName)` from `EventBulkHandlerInterface`). Registration `Pyz\Zed\Publisher\PublisherDependencyProvider::getPublisherPlugins()` (declared return type `: array`; the union is only in the PHPDoc): flat list = default queue, `[queueName => [plugins]]` = custom publish queue.
+- **Publisher trigger plugin** (re-generation): `PublisherTriggerPluginInterface` (extends `EventResourceBulkRepositoryPluginInterface`): `getResourceName()`, `getEventName()`, `getIdColumnName(): ?string`, `getData(int $offset, int $limit): array`. Registration `getPublisherTriggerPlugins()`. `getIdColumnName()` in the format `table.column`: the part after the dot is read from `modifiedToArray()` of the returned transfers and becomes the event ID. The returned objects must be entity transfers (`buildQueryFromCriteria(...)->find()` returns `Spy…EntityTransfer`); data mapped to business transfers leads to errors or missing IDs `[live verified (202610.0)]`.
+- **Synchronization data plugin** (re-sync): currently `SynchronizationDataBulkRepositoryPluginInterface` (`getData(int $offset, int $limit, array $ids = []): array` with `SynchronizationDataTransfer[]`, plus `getResourceName()`, `hasStore()`, `getParams()`, `getQueueName()`, `getSynchronizationQueuePoolName()`). Registration `Pyz\Zed\Synchronization\SynchronizationDependencyProvider::getSynchronizationDataPlugins()`. The export uses `SynchronizationDataTransfer::getKey()` as the finished Redis key.
+- **Synchronization behavior parameters:**
 
-| Parameter | Bedeutung |
+| Parameter | Meaning |
 |---|---|
-| `resource` | Pflicht, Resource-Name für die Key-Generierung (`MissingAttributeException`) |
-| `key_suffix_column` | Spalte, deren Wert der Key-Reference wird |
-| `store` / `locale` | ergänzt Spalten `store` (VARCHAR 128) bzw. `locale` (VARCHAR 16), fließt in den Key ein |
-| `queue_group` | Sync-Queue. Fehlt er, gilt `resource` |
-| `queue_pool` | Queue-Pool (`RabbitMqConfig::getQueuePools()`), **exklusiv mit `store`** (`InvalidConfigurationException`). Ohne `store` Pflicht für `sync:data`: Das Sync-Data-Plugin muss denselben Pool aus `getSynchronizationQueuePoolName()` liefern, sonst `SynchronizationQueuePoolNotFoundException` `[live verifiziert (202610.0)]` |
-| `mappings` | `"<key>:<spalte>"`, mehrere mit `;`, erzeugt Alias-Keys (Spalte `alias_keys`) |
-| `params` | JSON für `params` in der Nachricht, Search-Tabellen `{"type":"page"}` |
-| `synchronization_enabled`, `direct_sync_disabled` | pro Tabelle überschreiben Config bzw. schalten Direct Sync ab |
+| `resource` | Mandatory, resource name for key generation (`MissingAttributeException`) |
+| `key_suffix_column` | Column whose value becomes the key reference |
+| `store` / `locale` | adds the columns `store` (VARCHAR 128) or `locale` (VARCHAR 16), goes into the key |
+| `queue_group` | Sync queue. If missing, `resource` applies |
+| `queue_pool` | Queue pool (`RabbitMqConfig::getQueuePools()`), **mutually exclusive with `store`** (`InvalidConfigurationException`). Without `store` mandatory for `sync:data`: the sync data plugin must return the same pool from `getSynchronizationQueuePoolName()`, otherwise `SynchronizationQueuePoolNotFoundException` `[live verified (202610.0)]` |
+| `mappings` | `"<key>:<column>"`, several separated by `;`, creates alias keys (column `alias_keys`) |
+| `params` | JSON for `params` in the message, search tables `{"type":"page"}` |
+| `synchronization_enabled`, `direct_sync_disabled` | per table, override the config or switch off direct sync |
 
-  Der Behavior ergänzt automatisch `data` (Typ `getDataColumnType()`, Default `CLOB`) und `key` (unique), bei Bedarf `store`, `locale`, `alias_keys`. Tabellenname endet auf `_storage` (Ziel Redis) bzw. `_search` (Ziel Search), die Direct-Sync-Zielerkennung beruht darauf.
-- **Storage-Key:** erzeugt der `SynchronizationService` (`DefaultKeyGeneratorPlugin`): `<resource>[:<store>][:<locale>][:<reference>]`, Store/Locale klein, Reference bereinigt. Laufbeispiel: `product_badge:<id_product_abstract>`.
+  The behavior automatically adds `data` (type `getDataColumnType()`, default `CLOB`) and `key` (unique), and if needed `store`, `locale`, `alias_keys`. The table name ends in `_storage` (target Redis) or `_search` (target search); direct sync target detection relies on this.
+- **Storage key:** generated by the `SynchronizationService` (`DefaultKeyGeneratorPlugin`): `<resource>[:<store>][:<locale>][:<reference>]`, store/locale lowercase, reference sanitized. Running example: `product_badge:<id_product_abstract>`.
 
-## Anleitung
+## Instructions
 
-1. **Schema:** Quell-Tabelle mit `event`-Behavior, Mirror-Tabelle `<name>_storage` mit `synchronization`-Behavior ([transfer-and-propel](../templates/transfer-and-propel/README.md)). Danach `propel:install` (Hooks stecken im generierten Entity-Code).
-2. **Modul `<Name>Storage`** (Suffix `Storage` bzw. `Search`): Shared-Config mit Konstanten (Events, Resource, Queues), Writer in der Business-Schicht, DB-Zugriff über Repository/EntityManager, Publisher-Plugins in `Communication/Plugin/Publisher/`.
-3. **Writer bulk-orientiert:** `handleBulk` bekommt viele Events. IDs über `EventBehaviorFacade::getEventTransferIds()`, `getEventTransferForeignKeys()`, `getEventTransfersByModifiedColumns()` einsammeln, in einer Query laden, nicht je Event eine Query. `data` als Array setzen (`setData($transfer->toArray())`, der Behavior serialisiert nach JSON). Beim Löschen die Mirror-Entity per `delete()` entfernen (löscht den Redis-Key).
-4. **Trigger-Plugin und Sync-Data-Plugin immer mitliefern**, sonst sind `publish:trigger-events -r …` bzw. `sync:data …` wirkungslos. `resource` identisch in Schema, Trigger-Plugin, Sync-Plugin und Reader halten.
-5. **Registrieren:** `PublisherDependencyProvider`, `SynchronizationDependencyProvider`, `RabbitMqConfig`, `QueueDependencyProvider` (Zeilen im Template-README).
-6. **Queues und Hooks aktivieren** (alle drei ausgeführt `[live verifiziert (202610.0)]`, Exit 0):
+1. **Schema:** source table with `event` behavior, mirror table `<name>_storage` with `synchronization` behavior ([transfer-and-propel](../templates/transfer-and-propel/README.md)). Then `propel:install` (the hooks live in the generated entity code).
+2. **Module `<Name>Storage`** (suffix `Storage` or `Search`): shared config with constants (events, resource, queues), writer in the business layer, DB access via Repository/EntityManager, publisher plugins in `Communication/Plugin/Publisher/`.
+3. **Bulk-oriented writer:** `handleBulk` receives many events. Collect IDs via `EventBehaviorFacade::getEventTransferIds()`, `getEventTransferForeignKeys()`, `getEventTransfersByModifiedColumns()`, load them in one query, not one query per event. Set `data` as an array (`setData($transfer->toArray())`, the behavior serializes to JSON). On deletion remove the mirror entity via `delete()` (deletes the Redis key).
+4. **Always ship the trigger plugin and the sync data plugin**, otherwise `publish:trigger-events -r …` or `sync:data …` have no effect. Keep `resource` identical in schema, trigger plugin, sync plugin and reader.
+5. **Register:** `PublisherDependencyProvider`, `SynchronizationDependencyProvider`, `RabbitMqConfig`, `QueueDependencyProvider` (lines in the template README).
+6. **Activate queues and hooks** (all three executed `[live verified (202610.0)]`, exit 0):
    ```bash
    docker/sdk cli console propel:install
    docker/sdk cli console transfer:generate
    docker/sdk cli console queue:setup
    ```
-7. **Re-Generation / Re-Sync** (Doku `publish-and-synchronize-re-synchronization-and-re-generation`; `publish:trigger-events -r navigation` (8 Nachrichten landen in der Queue `publish`), `-r cms_page -i 1,2` und `sync:data navigation [1,2]` ausgeführt `[live verifiziert (202610.0)]`, Exit 0, still; zum Abarbeiten `queue:worker:start --stop-when-empty`):
+7. **Re-generation / re-sync** (docs `publish-and-synchronize-re-synchronization-and-re-generation`; `publish:trigger-events -r navigation` (8 messages land in the `publish` queue), `-r cms_page -i 1,2` and `sync:data navigation [1,2]` executed `[live verified (202610.0)]`, exit 0, silent; to process them `queue:worker:start --stop-when-empty`):
    ```bash
    docker/sdk cli console publish:trigger-events -r product_badge -i 1,2   # -r/--resource, -i/--ids
-   docker/sdk cli console sync:data product_badge 1,2                      # Argumente, keine Optionen
-   docker/sdk cli console event:trigger:timeout                            # hängende Entity-Change-Events
+   docker/sdk cli console sync:data product_badge 1,2                      # arguments, not options
+   docker/sdk cli console event:trigger:timeout                            # stuck entity change events
    ```
-   `sync:data` liest vorhandene Mirror-Tabellen über die Sync-Data-Plugins und füllt Redis/Search neu (nach Flush). `publish:trigger-events` baut die Mirror-Tabellen über die Trigger-Plugins neu auf. Redis/Search werden danach nur aktualisiert, wenn sich die Mirror-Entity geändert hat; für alles zusätzlich `sync:data`.
-8. **Direct Sync** (Doku `configure-direct-synchronize`): `DirectSynchronizationConsolePlugin` in `ConsoleDependencyProvider::getEventSubscriber()` (im Projekt vorhanden), `SynchronizationBehaviorConfig::isDirectSynchronizationEnabled()` auf `true` (Pyz: `false`), `propel:install`, empfohlen `QueueConfig::isReducedSyncQueueScanEnabled()` (spryker/queue >= 1.29.0). Einzelne Tabellen: `<parameter name="direct_sync_disabled"/>`. **Code-Befund:** Direct Sync gilt nur, wenn `isDirectSynchronizationEnabled() && !direct_sync_disabled && isDynamicStoreEnabled()` (`(bool)getenv('SPRYKER_DYNAMIC_STORE_MODE')`). Ohne Dynamic Store Mode bleibt es bei Queue-Sync, auch mit gesetztem Flag. Das ist strenger als die Doku, der Code gilt.
-9. **Debuggen** (Doku `publish-and-synchronize-debugging`):
-   - Event-Logger: `$config[EventConstants::LOGGER_ACTIVE] = true` (im Projekt gesetzt), Logfile `EventConstants::LOG_FILE_PATH` (`…/ZED/application_events.log`). Mindest-Loglevel `EventConfig::DEFAULT_EVENT_LOGGER_MIN_LEVEL` in Pyz `Logger::WARNING`, zum Debuggen auf `INFO` senken.
-   - RabbitMQ-UI: `.error`-Queues zeigen Fehlschläge. Beim manuellen Debugging Jenkins-Jobs abschalten.
-   - Eingrenzen: Mirror-Tabelle falsch/leer = Publisher/Writer. Mirror korrekt, Redis nicht = Sync-Schritt. Redis korrekt = Lesepfad ([Client](08-client-storage-search.md)).
-   - Dev-Kommandos (`isDevelopmentConsoleCommandsEnabled()`): `event:dump:listener [--event=…] [--queue=…] [--event-names-only] [--queue-names-only]`, `event:trigger:listener <listenerName> <data> [-e event] [-f format]`.
-   - Listener-Fehlermeldungen erscheinen nur bei aktivem Event-Logger (`EventQueueConsumer::handleFailedEventItem`).
+   `sync:data` reads existing mirror tables via the sync data plugins and refills Redis/search (after a flush). `publish:trigger-events` rebuilds the mirror tables via the trigger plugins. Redis/search are then only updated if the mirror entity changed; for everything, additionally run `sync:data`.
+8. **Direct sync** (docs `configure-direct-synchronize`): `DirectSynchronizationConsolePlugin` in `ConsoleDependencyProvider::getEventSubscriber()` (present in the project), `SynchronizationBehaviorConfig::isDirectSynchronizationEnabled()` set to `true` (Pyz: `false`), `propel:install`, recommended `QueueConfig::isReducedSyncQueueScanEnabled()` (spryker/queue >= 1.29.0). Individual tables: `<parameter name="direct_sync_disabled"/>`. **Code finding:** direct sync only applies if `isDirectSynchronizationEnabled() && !direct_sync_disabled && isDynamicStoreEnabled()` (`(bool)getenv('SPRYKER_DYNAMIC_STORE_MODE')`). Without Dynamic Store mode it stays with queue sync, even with the flag set. This is stricter than the docs; the code applies.
+9. **Debugging** (docs `publish-and-synchronize-debugging`):
+   - Event logger: `$config[EventConstants::LOGGER_ACTIVE] = true` (set in the project), log file `EventConstants::LOG_FILE_PATH` (`…/ZED/application_events.log`). Minimum log level `EventConfig::DEFAULT_EVENT_LOGGER_MIN_LEVEL` in Pyz `Logger::WARNING`, lower it to `INFO` for debugging.
+   - RabbitMQ UI: `.error` queues show failures. Switch off Jenkins jobs during manual debugging.
+   - Narrowing down: mirror table wrong/empty = publisher/writer. Mirror correct, Redis not = sync step. Redis correct = read path ([Client](08-client-storage-search.md)).
+   - Dev commands (`isDevelopmentConsoleCommandsEnabled()`): `event:dump:listener [--event=…] [--queue=…] [--event-names-only] [--queue-names-only]`, `event:trigger:listener <listenerName> <data> [-e event] [-f format]`.
+   - Listener error messages only appear with the event logger active (`EventQueueConsumer::handleFailedEventItem`).
 
-Nützliche Konfig: `EventConfig::getEventQueueMessageChunkSize()` (500), `EventBehaviorConfig::getTriggerChunkSize()` (1000), `getTriggerChunkSleepSeconds()` (5), `getMaxEventMessageDataSize()` (256), `SynchronizationConstants::DEFAULT_SYNC_SEARCH_QUEUE_MESSAGE_CHUNK_SIZE` (Projekt 1000), `SynchronizationConfig::isRepositorySyncExportPropelInstancePoolingDisabled()` (Pyz `true`), die Konstante `DEFAULT_SYNCHRONIZATION_POOL_NAME = 'synchronizationPool'` gibt es nur im Projekt (`Pyz\Zed\Synchronization\SynchronizationConfig`), nicht im Core-`SynchronizationConfig`.
+Useful config: `EventConfig::getEventQueueMessageChunkSize()` (500), `EventBehaviorConfig::getTriggerChunkSize()` (1000), `getTriggerChunkSleepSeconds()` (5), `getMaxEventMessageDataSize()` (256), `SynchronizationConstants::DEFAULT_SYNC_SEARCH_QUEUE_MESSAGE_CHUNK_SIZE` (project 1000), `SynchronizationConfig::isRepositorySyncExportPropelInstancePoolingDisabled()` (Pyz `true`); the constant `DEFAULT_SYNCHRONIZATION_POOL_NAME = 'synchronizationPool'` exists only in the project (`Pyz\Zed\Synchronization\SynchronizationConfig`), not in the core `SynchronizationConfig`.
 
-## Beispiele
+## Examples
 
-Vollständiges, zusammenpassendes Laufbeispiel: [`publisher-and-synchronization`](../templates/publisher-and-synchronization/README.md). Festlegungen dort: Resource `product_badge`, Key `product_badge:<id_product_abstract>`, Events `Entity.spy_product_badge.create|update|delete` und `ProductBadge.product_badge.publish`, Queues `publish.product_badge` und `sync.storage.product_badge`.
+Complete, consistent running example: [`publisher-and-synchronization`](../templates/publisher-and-synchronization/README.md). Definitions there: resource `product_badge`, key `product_badge:<id_product_abstract>`, events `Entity.spy_product_badge.create|update|delete` and `ProductBadge.product_badge.publish`, queues `publish.product_badge` and `sync.storage.product_badge`.
 
-Storage-Tabelle (aus [transfer-and-propel](../templates/transfer-and-propel/README.md)):
+Storage table (from [transfer-and-propel](../templates/transfer-and-propel/README.md)):
 
 ```xml
 <table name="spy_product_badge_storage" identifierQuoting="true">
@@ -94,7 +94,7 @@ Storage-Tabelle (aus [transfer-and-propel](../templates/transfer-and-propel/READ
 </table>
 ```
 
-Publisher-Plugin (`src/Pyz/Zed/ProductBadgeStorage/Communication/Plugin/Publisher/ProductBadgeWritePublisherPlugin.php`):
+Publisher plugin (`src/Pyz/Zed/ProductBadgeStorage/Communication/Plugin/Publisher/ProductBadgeWritePublisherPlugin.php`):
 
 ```php
 class ProductBadgeWritePublisherPlugin extends AbstractPlugin implements PublisherPluginInterface
@@ -116,74 +116,74 @@ class ProductBadgeWritePublisherPlugin extends AbstractPlugin implements Publish
 }
 ```
 
-Der Parametertyp von `$eventName` bleibt untypisiert (Interface-Signatur), `: void` ist kompatibel. Das Core-Beispiel nutzt untypisiert ohne Rückgabetyp.
+The parameter type of `$eventName` stays untyped (interface signature), `: void` is compatible. The core example uses it untyped without a return type.
 
-Writer-Kern (Entity-Events: Foreign Key, Publish-Event: Event-ID; ein Storage-Datensatz je Product Abstract, ohne Badges Löschen):
+Writer core (entity events: foreign key, publish event: event ID; one storage record per product abstract, delete if there are no badges):
 
 ```php
 $idsProductAbstract = $eventName === ProductBadgeStorageConfig::PRODUCT_BADGE_PUBLISH
     ? $this->eventBehaviorFacade->getEventTransferIds($eventEntityTransfers)
     : $this->eventBehaviorFacade->getEventTransferForeignKeys($eventEntityTransfers, 'spy_product_badge.fk_product_abstract');
-// ... Badges je ID laden, dann
+// ... load badges per ID, then
 $productBadgeStorageEntity->setData($productBadgeStorageTransfer->toArray());
-$productBadgeStorageEntity->save();   // postSave() des Behaviors sendet die Sync-Nachricht
+$productBadgeStorageEntity->save();   // the behavior's postSave() sends the sync message
 ```
 
-Registrierung (Auszug `PublisherDependencyProvider`):
+Registration (excerpt `PublisherDependencyProvider`):
 
 ```php
 protected function getProductBadgeStoragePlugins(): array
 {
     return [
-        ProductBadgeStorageConfig::PUBLISH_PRODUCT_BADGE => [   // Array-Key = eigene Publish-Queue
+        ProductBadgeStorageConfig::PUBLISH_PRODUCT_BADGE => [   // array key = custom publish queue
             new ProductBadgeWritePublisherPlugin(),
         ],
     ];
 }
 ```
 
-Real im Release (`PublisherDependencyProvider::getPublishAndSynchronizeHealthCheckPlugins()`): Queue-Key plus Storage- und Search-Plugin. Das Modul `vendor/spryker/publish-and-synchronize-health-check-storage` ist das kleinste vollständige Referenzmodul (Schema, Writer, Publisher-/Trigger-Plugin). Beobachtung: für den Health-Check ist im Pyz-`SynchronizationDependencyProvider` kein Sync-Data-Plugin eingetragen, `sync:data` kann die Resource also nicht re-exportieren.
+Real in the release (`PublisherDependencyProvider::getPublishAndSynchronizeHealthCheckPlugins()`): queue key plus storage and search plugin. The module `vendor/spryker/publish-and-synchronize-health-check-storage` is the smallest complete reference module (schema, writer, publisher/trigger plugin). Observation: no sync data plugin is registered for the health check in the Pyz `SynchronizationDependencyProvider`, so `sync:data` cannot re-export the resource.
 
-## Fallstricke
+## Pitfalls
 
-1. Queue nur in `RabbitMqConfig` oder nur im `QueueDependencyProvider` eingetragen: Nachrichten stauen sich oder werden nie verarbeitet. Beides plus `queue:setup`.
-2. `propel:install` nach Schema-/Behavior-Änderung vergessen: keine Events, keine Sync-Nachrichten.
-3. `queue_pool` zusammen mit `store`-Parameter: `InvalidConfigurationException`. Die Abstract-Tabelle von ProductStorage hat `store` und kann keinen `queue_pool` haben, `spy_product_concrete_storage` nur `locale` und trägt ihn (`src/Pyz/Zed/ProductStorage/Persistence/Propel/Schema/spy_product_storage.schema.xml`).
-4. `resource` fehlt: `MissingAttributeException`. Tabellenname ohne `_storage`/`_search`-Suffix: Direct-Sync-Zielerkennung leer.
-5. `sync:data product_abstract --ids=1`: Die Option `--ids` gibt es bei `sync:data` nicht (Symfony meldet eine unbekannte Option). Die IDs sind das zweite positionale Argument: `sync:data product_abstract 1,2`. Nur `publish:trigger-events` kennt `-i|--ids`.
-6. Event-Logger aus: Listener-Fehler erscheinen nur generisch, Nachrichten landen in `*.error`.
-7. Direct Sync aktiviert, aber `SPRYKER_DYNAMIC_STORE_MODE` nicht gesetzt: es bleibt bei Queue-Sync.
-8. Große Publisher-Läufe belegen Speicher (Propel Instance Pooling), `EventConfig::isInstancePoolingAllowed()` bzw. `isRepositorySyncExportPropelInstancePoolingDisabled()` beachten.
-9. Mehrere Sync-Worker: nur der `OutdatedValidator` fängt Reihenfolgeprobleme ab (bei `getQueueWorkerNumber() > 1`).
-10. Gleiche Daten erneut gespeichert: `setData()` mit identischem Wert ändert nichts, `postSave()` läuft nur bei `$affectedRows`, es entsteht keine Sync-Nachricht. Praktische Folge: `publish:trigger-events -r <resource>` füllt einen manuell gelöschten Redis-Key nicht wieder auf, dafür `sync:data <resource>` `[live verifiziert (202610.0)]`.
-11. Upgrader-Anti-Patterns: Änderungen in `vendor/spryker/*-storage|*-search`, fremde Publisher-Plugins nach Pyz kopieren statt registrieren, `src/Orm`/`src/Generated` von Hand ändern ([Upgradability](28-upgradability.md)).
+1. Queue entered only in `RabbitMqConfig` or only in `QueueDependencyProvider`: messages pile up or are never processed. Both plus `queue:setup`.
+2. Forgot `propel:install` after a schema/behavior change: no events, no sync messages.
+3. `queue_pool` together with the `store` parameter: `InvalidConfigurationException`. The abstract table of ProductStorage has `store` and cannot have a `queue_pool`; `spy_product_concrete_storage` has only `locale` and carries it (`src/Pyz/Zed/ProductStorage/Persistence/Propel/Schema/spy_product_storage.schema.xml`).
+4. `resource` missing: `MissingAttributeException`. Table name without `_storage`/`_search` suffix: direct sync target detection empty.
+5. `sync:data product_abstract --ids=1`: the option `--ids` does not exist for `sync:data` (Symfony reports an unknown option). The IDs are the second positional argument: `sync:data product_abstract 1,2`. Only `publish:trigger-events` knows `-i|--ids`.
+6. Event logger off: listener errors only appear generically, messages land in `*.error`.
+7. Direct sync enabled, but `SPRYKER_DYNAMIC_STORE_MODE` not set: it stays with queue sync.
+8. Large publisher runs consume memory (Propel instance pooling); mind `EventConfig::isInstancePoolingAllowed()` or `isRepositorySyncExportPropelInstancePoolingDisabled()`.
+9. Several sync workers: only the `OutdatedValidator` catches ordering problems (with `getQueueWorkerNumber() > 1`).
+10. Same data saved again: `setData()` with an identical value changes nothing, `postSave()` only runs with `$affectedRows`, no sync message is created. Practical consequence: `publish:trigger-events -r <resource>` does not refill a manually deleted Redis key; use `sync:data <resource>` for that `[live verified (202610.0)]`.
+11. Upgrader anti-patterns: changes in `vendor/spryker/*-storage|*-search`, copying foreign publisher plugins into Pyz instead of registering them, changing `src/Orm`/`src/Generated` by hand ([Upgradability](28-upgradability.md)).
 12. **Deprecations:**
-    - `[Deprecated]` `EventTriggerConsole` (`event:trigger`): "Use PublisherTriggerEventsConsole instead" (`publish:trigger-events`), im Projekt nicht registriert.
-    - Subscriber/Listener-Modell (`*EventSubscriber`, `Communication/Plugin/Event/Listener/*`): im Release weiter aktiv (ca. 50 Einträge in `src/Pyz/Zed/Event/EventDependencyProvider.php`), Doku nennt Listener Legacy. Mischbetrieb (ProductStorage hat Subscriber und Publisher-Plugin). Neu: Publisher-Plugin, Bestand nicht ohne Not migrieren. `[Annahme]` formale `@deprecated`-Markierung nicht klassenweise geprüft.
-    - `EventBehaviorDependencyProvider::getEventTriggerResourcePlugins()` (`*EventResource*Plugin`): Legacy-Pendant zu `getPublisherTriggerPlugins()`, beide sind im Release befüllt.
-    - `[Deprecated]` `SynchronizationDataRepositoryPluginInterface` ("Use SynchronizationDataBulkRepositoryPluginInterface instead", im Code geprüft). Die QueryContainer-Variante `SynchronizationDataQueryContainerPluginInterface` trägt dieses Tag nicht. Neue Plugins: `…BulkRepositoryPluginInterface`.
-    - `[Deprecated]` Synchronization-Behavior `mapping_resource`: "Will be removed without replacement", stattdessen `mappings`. Behavior-Methoden `isSendingToQueue()`/`setIsSendingToQueue()`: "Use SynchronizationBehaviorConfig::isSynchronizationEnabled()".
-    - Die Debug-Doku spricht noch von `{Entity}PublishListener` (veraltet gegenüber dem Plugin-Modell).
+    - `[Deprecated]` `EventTriggerConsole` (`event:trigger`): "Use PublisherTriggerEventsConsole instead" (`publish:trigger-events`), not registered in the project.
+    - Subscriber/listener model (`*EventSubscriber`, `Communication/Plugin/Event/Listener/*`): still active in the release (approx. 50 entries in `src/Pyz/Zed/Event/EventDependencyProvider.php`), the docs call listeners legacy. Mixed operation (ProductStorage has a subscriber and a publisher plugin). New: publisher plugin; do not migrate existing ones without need. `[Assumption]` formal `@deprecated` marking not checked class by class.
+    - `EventBehaviorDependencyProvider::getEventTriggerResourcePlugins()` (`*EventResource*Plugin`): legacy counterpart of `getPublisherTriggerPlugins()`, both are populated in the release.
+    - `[Deprecated]` `SynchronizationDataRepositoryPluginInterface` ("Use SynchronizationDataBulkRepositoryPluginInterface instead", checked in the code). The QueryContainer variant `SynchronizationDataQueryContainerPluginInterface` does not carry this tag. New plugins: `…BulkRepositoryPluginInterface`.
+    - `[Deprecated]` synchronization behavior `mapping_resource`: "Will be removed without replacement", use `mappings` instead. Behavior methods `isSendingToQueue()`/`setIsSendingToQueue()`: "Use SynchronizationBehaviorConfig::isSynchronizationEnabled()".
+    - The debug docs still talk about `{Entity}PublishListener` (outdated compared to the plugin model).
 
-## Checkliste
+## Checklist
 
-- [ ] Quell-Tabelle mit `event`-Behavior, Mirror-Tabelle `*_storage`/`*_search` mit `synchronization`-Behavior (`resource`, `key_suffix_column`, `queue_group`).
-- [ ] Event-/Queue-/Resource-Konstanten in der Shared-Config.
-- [ ] Publisher-Plugin, Trigger-Plugin **und** Sync-Data-Plugin vorhanden.
-- [ ] `resource` identisch in Schema, Trigger-, Sync-Plugin und Reader.
-- [ ] Registriert: `PublisherDependencyProvider` (Plugins und Trigger), `SynchronizationDependencyProvider`, `RabbitMqConfig` (Publish + Sync), `QueueDependencyProvider`.
-- [ ] `propel:install`, `transfer:generate`, `queue:setup` ausgeführt.
-- [ ] Writer bulk-orientiert, löscht die Mirror-Entity per `delete()`.
-- [ ] End-to-End geprüft: Mirror-Tabelle, Redis-Key, Reader.
+- [ ] Source table with `event` behavior, mirror table `*_storage`/`*_search` with `synchronization` behavior (`resource`, `key_suffix_column`, `queue_group`).
+- [ ] Event/queue/resource constants in the shared config.
+- [ ] Publisher plugin, trigger plugin **and** sync data plugin present.
+- [ ] `resource` identical in schema, trigger plugin, sync plugin and reader.
+- [ ] Registered: `PublisherDependencyProvider` (plugins and triggers), `SynchronizationDependencyProvider`, `RabbitMqConfig` (publish + sync), `QueueDependencyProvider`.
+- [ ] `propel:install`, `transfer:generate`, `queue:setup` executed.
+- [ ] Writer bulk-oriented, deletes the mirror entity via `delete()`.
+- [ ] Checked end to end: mirror table, Redis key, reader.
 
-## Quellen
+## Sources
 
-Doku (Basis https://docs.spryker.com/docs/dg/dev/backend-development/data-manipulation/data-publishing/):
-- publish-and-synchronization.html, implement-publish-and-synchronization.html (Stand 20.08.2026)
-- add-publish-events.html, implement-event-trigger-publisher-plugins.html, implement-synchronization-plugins.html (Stand 16.06.2021)
-- publish-and-synchronize-re-synchronization-and-re-generation.html (Stand 18.09.2025), publish-and-synchronize-debugging.html (Stand 18.09.2025)
-- configurartion/configure-direct-synchronize.html (Tippfehler im Pfad ist original, Stand 05.08.2026)
-- nicht ausgewertet: Handle data with Publish and Synchronization, Debug listeners, Synchronization behavior enabling multiple mappings, Publish and synchronize and multi-store ([Multi-Store](19-multi-store-i18n.md)).
+Docs (base https://docs.spryker.com/docs/dg/dev/backend-development/data-manipulation/data-publishing/):
+- publish-and-synchronization.html, implement-publish-and-synchronization.html (as of 20.08.2026)
+- add-publish-events.html, implement-event-trigger-publisher-plugins.html, implement-synchronization-plugins.html (as of 16.06.2021)
+- publish-and-synchronize-re-synchronization-and-re-generation.html (as of 18.09.2025), publish-and-synchronize-debugging.html (as of 18.09.2025)
+- configurartion/configure-direct-synchronize.html (the typo in the path is original, as of 05.08.2026)
+- not evaluated: Handle data with Publish and Synchronization, Debug listeners, Synchronization behavior enabling multiple mappings, Publish and synchronize and multi-store ([Multi-Store](19-multi-store-i18n.md)).
 
 Code:
 - `vendor/spryker/event/src/Spryker/Zed/Event/{Business/Queue/Consumer/EventQueueConsumer.php,Communication/Plugin/Console/EventListenerDumpConsole.php,EventConfig.php,Dependency/Plugin/*}`
@@ -193,8 +193,8 @@ Code:
 - `vendor/spryker/synchronization/src/Spryker/Zed/Synchronization/{Business/Export/RepositoryExporter.php,Communication/Console/ExportSynchronizedDataConsole.php,Persistence/Propel/Formatter/SynchronizationDataTransferObjectFormatter.php}`, `…/Service/Synchronization/Plugin/{BaseKeyGenerator,DefaultKeyGeneratorPlugin}.php`
 - `vendor/spryker/synchronization-extension/…/Dependency/Plugin/*`, `vendor/spryker/synchronization-behavior/…/Behavior/SynchronizationBehavior.php`
 - `vendor/spryker/publish-and-synchronize-health-check-storage/src/Spryker/**`, `vendor/spryker/asset-storage/**`, `vendor/spryker/product-label-storage/…/ProductAbstractLabelPublisherTriggerPlugin.php`
-- Projekt: `src/Pyz/Zed/{Publisher,Event,EventBehavior,Synchronization,SynchronizationBehavior,Queue,Console,ProductStorage}/*`, `src/Pyz/Client/RabbitMq/RabbitMqConfig.php`, `config/Shared/config_default.php`, `config_default-docker*.php`
+- Project: `src/Pyz/Zed/{Publisher,Event,EventBehavior,Synchronization,SynchronizationBehavior,Queue,Console,ProductStorage}/*`, `src/Pyz/Client/RabbitMq/RabbitMqConfig.php`, `config/Shared/config_default.php`, `config_default-docker*.php`
 
-Offene Lücken: Lebenszyklus von `spy_event_behavior_entity_change` (Bereinigung, Timeout-Logik) nur oberflächlich geprüft, formale Deprecation der Subscriber nicht klassenweise geprüft.
+Open gaps: lifecycle of `spy_event_behavior_entity_change` (cleanup, timeout logic) only checked superficially, formal deprecation of the subscribers not checked class by class.
 
-Nachbar-Referenzen: [Propel](05-propel-persistenz.md), [Client/Storage/Search](08-client-storage-search.md), [Console/Cron/Queue](22-console-cron-queue.md), [Upgradability](28-upgradability.md). Templates: [publisher-and-synchronization](../templates/publisher-and-synchronization/README.md), [transfer-and-propel](../templates/transfer-and-propel/README.md).
+Neighboring references: [Propel](05-propel-persistence.md), [Client/Storage/Search](08-client-storage-search.md), [Console/Cron/Queue](22-console-cron-queue.md), [Upgradability](28-upgradability.md). Templates: [publisher-and-synchronization](../templates/publisher-and-synchronization/README.md), [transfer-and-propel](../templates/transfer-and-propel/README.md).

@@ -3,7 +3,7 @@
            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
            xsi:schemaLocation="spryker:transfer-01 http://static.spryker.com/transfer-01.xsd">
 
-    <!-- Payload der Storage-Tabelle spy_product_badge_storage.data bzw. des Redis-Werts product_badge:<id_product_abstract> -->
+    <!-- Payload of the storage table spy_product_badge_storage.data or of the Redis value product_badge:<id_product_abstract> -->
     <transfer name="ProductBadgeStorage" strict="true">
         <property name="idProductAbstract" type="int"/>
         <property name="productBadges" type="ProductBadge[]" singular="productBadge"/>

@@ -18,7 +18,7 @@ class ProductBadgesRestApiConfig extends AbstractBundleConfig
     public const PARAMETER_ID_PRODUCT_ABSTRACT = 'idProductAbstract';
 
     /**
-     * Projekteigene Fehlercodes, pro Modul eindeutig halten.
+     * Project-specific error codes, keep them unique per module.
      */
     public const RESPONSE_CODE_MISSING_ID_PRODUCT_ABSTRACT = '4401';
 

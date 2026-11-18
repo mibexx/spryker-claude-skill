@@ -12,7 +12,7 @@
         }
 
         &__hidden {
-            // !important, weil die Item-/Button-Klassen ein eigenes display setzen (gleiche Spezifität)
+            // !important, because the item/button classes set their own display (same specificity)
             display: none !important;
         }
 

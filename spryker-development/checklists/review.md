@@ -1,61 +1,61 @@
-# Review-Checkliste
+# Review Checklist
 
-Vor dem Merge/PR abhaken. Abgeleitet aus den Referenzen zu Performance, Tests, Coding-Guidelines, Upgradability, Docker-SDK-Workflow, Security und Konfiguration. Befehle im Container: `docker/sdk cli <befehl>` bzw. `docker/sdk cli console <cmd>`; alle Befehle wurden im Container ausgeführt `[live verifiziert (202610.0)]`.
+Tick off before the merge/PR. Derived from the references on performance, tests, coding guidelines, upgradability, Docker SDK workflow, security and configuration. Commands in the container: `docker/sdk cli <command>` or `docker/sdk cli console <cmd>`; all commands were executed in the container `[live verified (202610.0)]`.
 
-## Architektur und Code-Stil ([Coding-Guidelines](../references/27-coding-guidelines.md))
-- [ ] Lizenz-Docblock und `declare(strict_types = 1);`, Namespace `Pyz\…`, Dateiname = Klassenname
-- [ ] Parameter, Rückgaben und Properties typisiert, `array<…>`-Docblocks
-- [ ] `@method`-Annotationen für Facade/Factory/Config/Client vorhanden
-- [ ] Objekte nur in Factory-`create*`-Methoden, Fremdabhängigkeiten über DependencyProvider, `getLocator()` nur dort
-- [ ] Modulübergreifend nur Facade (Zed) bzw. Client (Yves/Glue); keine Propel-Queries/Repositories fremder Module
-- [ ] Keine Bridges im Projektcode (Fremd-Facade/-Client direkt per Locator im DependencyProvider, Factory-Getter auf das Interface des Fremdmoduls typisiert); `ProjectNoBridgeRule` greift nur im Project-Ruleset (siehe Statische Analyse). Facade ohne Logik, Facade-Methoden mit Transfers
-- [ ] Kein Propel/`new SpyEntity` in Business/Communication
-- [ ] Modulname ohne `Example`, `Test`, `Dummy`, `Antelope`
-- [ ] Suppressions (`phpcs:ignore`, `@SuppressWarnings`, `@phpstan-ignore`) begründet und minimal
+## Architecture and code style ([Coding Guidelines](../references/27-coding-guidelines.md))
+- [ ] License docblock and `declare(strict_types = 1);`, namespace `Pyz\…`, file name = class name
+- [ ] Parameters, return values and properties typed, `array<…>` docblocks
+- [ ] `@method` annotations for Facade/Factory/Config/Client present
+- [ ] Objects only in Factory `create*` methods, foreign dependencies via DependencyProvider, `getLocator()` only there
+- [ ] Across modules only Facade (Zed) or Client (Yves/Glue); no Propel queries/repositories of foreign modules
+- [ ] No bridges in project code (foreign Facade/Client directly via the locator in the DependencyProvider, Factory getter typed to the foreign module's interface); `ProjectNoBridgeRule` only applies in the project ruleset (see Static analysis). Facade without logic, Facade methods with Transfers
+- [ ] No Propel/`new SpyEntity` in Business/Communication
+- [ ] Module name without `Example`, `Test`, `Dummy`, `Antelope`
+- [ ] Suppressions (`phpcs:ignore`, `@SuppressWarnings`, `@phpstan-ignore`) justified and minimal
 
-## Statische Analyse ([Coding-Guidelines](../references/27-coding-guidelines.md))
-- [ ] `transfer:generate` und `dev:ide-auto-completion:generate` vorab ausgeführt
-- [ ] `code:sniff:style` ohne Befund (erst mit `-f`, dann ohne)
-- [ ] `code:phpstan` (mindestens Level 6, wie CI) ohne neue Befunde
-- [ ] `code:sniff:architecture` (Priorität 2, **Core-Ruleset**) ohne Befund; CI-Parität `phpmd src/ … --minimumpriority 2`
-- [ ] Project-Ruleset ohne Befund (prüft u. a. `ProjectNoBridgeRule`): `docker/sdk cli vendor/bin/phpmd src/Pyz text vendor/spryker/architecture-sniffer/src/Project/ruleset.xml`
-- [ ] `propel:schema:validate` und `transfer:validate` grün
+## Static analysis ([Coding Guidelines](../references/27-coding-guidelines.md))
+- [ ] `transfer:generate` and `dev:ide-auto-completion:generate` executed beforehand
+- [ ] `code:sniff:style` without findings (first with `-f`, then without)
+- [ ] `code:phpstan` (at least level 6, like CI) without new findings
+- [ ] `code:sniff:architecture` (priority 2, **core ruleset**) without findings; CI parity `phpmd src/ … --minimumpriority 2`
+- [ ] Project ruleset without findings (checks `ProjectNoBridgeRule` among others): `docker/sdk cli vendor/bin/phpmd src/Pyz text vendor/spryker/architecture-sniffer/src/Project/ruleset.xml`
+- [ ] `propel:schema:validate` and `transfer:validate` green
 
 ## Tests ([Tests](../references/26-tests.md))
-- [ ] Test im Pfad `tests/PyzTest/<App>/<Modul>/<Suite>/`, Modul-`codeception.yml` vorhanden
-- [ ] Arrange/Act/Assert, `@group`-Annotationen, `strict_types`, Methodenname `testWhatShouldHappen`
-- [ ] Mocks nur an Facade/Client/Dependency, nicht an internen Models
-- [ ] Neuer Helper-Namespace `…\Business\BusinessHelper` (nicht der deprecated Alias)
-- [ ] Testdaten per `have*`/DataBuilder; Transaktion bzw. Cleanup aktiv
-- [ ] Glue-Cests mit `@depends loadFixtures`, Gruppe `EndToEnd`, OpenAPI-Schema geprüft
-- [ ] `codecept build` gelaufen, `_generated/` nicht committet
+- [ ] Test in the path `tests/PyzTest/<App>/<Module>/<Suite>/`, module `codeception.yml` present
+- [ ] Arrange/Act/Assert, `@group` annotations, `strict_types`, method name `testWhatShouldHappen`
+- [ ] Mocks only on Facade/Client/Dependency, not on internal models
+- [ ] New helper namespace `…\Business\BusinessHelper` (not the deprecated alias)
+- [ ] Test data via `have*`/DataBuilder; transaction or cleanup active
+- [ ] Glue Cests with `@depends loadFixtures`, group `EndToEnd`, OpenAPI schema checked
+- [ ] `codecept build` run, `_generated/` not committed
 
 ## Performance ([Performance/Caching](../references/25-performance-caching.md))
-- [ ] Yves-Lesepfad ohne Zed-Call (nur Client → Storage/Search)
-- [ ] Mehrfach-Lesen per `getMulti`, keine Einzel-`get` in Schleifen
-- [ ] Keine N+1-Queries (Join, `filterByIdIn`, Bulk-Repository)
-- [ ] Neue Caches mit Warm-Up im Install-Recipe
-- [ ] Chunk-Größen nur nach Messung geändert
+- [ ] Yves read path without a Zed call (only Client → Storage/Search)
+- [ ] Multiple reads via `getMulti`, no single `get` in loops
+- [ ] No N+1 queries (join, `filterByIdIn`, bulk repository)
+- [ ] New caches with warm-up in the install recipe
+- [ ] Chunk sizes changed only after measurement
 
-## Security und Session ([Security/Session](../references/21-security-session.md))
-- [ ] Neue Yves-Route in `CustomerConstants::CUSTOMER_SECURED_PATTERN`, falls nur für Angemeldete (sonst anonym erreichbar); Locale-/Store-Präfix im Regex beachtet
-- [ ] Neue Zed-Route: Zugriff über ACL; öffentlich nur über `IGNORABLE_ROUTE_PATTERN`
-- [ ] Glue-Ressourcen: `isProtected`/Autorisierungsstrategie bewusst gesetzt
-- [ ] Formulare über `FormFactory` (CSRF aktiv), kein `|raw` für Nutzereingaben
-- [ ] Keine Secrets im Code; `getenv()` nur in `config/Shared/*.php`
+## Security and session ([Security/Session](../references/21-security-session.md))
+- [ ] New Yves route in `CustomerConstants::CUSTOMER_SECURED_PATTERN` if only for logged-in users (otherwise reachable anonymously); mind the locale/store prefix in the regex
+- [ ] New Zed route: access via ACL; public only via `IGNORABLE_ROUTE_PATTERN`
+- [ ] Glue resources: `isProtected`/authorization strategy set deliberately
+- [ ] Forms via `FormFactory` (CSRF active), no `|raw` for user input
+- [ ] No secrets in code; `getenv()` only in `config/Shared/*.php`
 
-## Konfiguration ([Konfiguration](../references/06-konfiguration.md))
-- [ ] Werte über `*Constants` + `*Config` gelesen, nicht per `Config::get()` in Business/DependencyProvider
-- [ ] Einstellung in der tatsächlich geladenen Datei (nicht `config_default-docker.php` bei `docker.dev`)
-- [ ] `Config::get()` immer mit Default, Array-Erweiterungen per `array_merge`
-- [ ] Neue Env-Variablen in `deploy*.yml` ergänzt, Demo-Secrets nicht in Produktivumgebungen
+## Configuration ([Configuration](../references/06-configuration.md))
+- [ ] Values read via `*Constants` + `*Config`, not via `Config::get()` in Business/DependencyProvider
+- [ ] Setting in the file that is actually loaded (not `config_default-docker.php` with `docker.dev`)
+- [ ] `Config::get()` always with a default, array extensions via `array_merge`
+- [ ] New env variables added to `deploy*.yml`, demo secrets not in production environments
 
-## Fehler, Logging, Mail ([Fehler/Logging](../references/23-fehler-logging-debugging.md), [Mail](../references/24-mail-message-broker.md))
-- [ ] Exceptions mit Kontext geloggt (`['exception' => $e]`), eigene Exceptions in `Business/Exception/`
-- [ ] Sensible Felder in `LOG_SANITIZE_FIELDS`
-- [ ] Mail-Typ-Plugin registriert, Glossar-Keys für alle Locales importiert
+## Errors, logging, mail ([Errors/Logging](../references/23-errors-logging-debugging.md), [Mail](../references/24-mail-message-broker.md))
+- [ ] Exceptions logged with context (`['exception' => $e]`), own exceptions in `Business/Exception/`
+- [ ] Sensitive fields in `LOG_SANITIZE_FIELDS`
+- [ ] Mail type plugin registered, glossary keys imported for all locales
 
-## Upgradability und Workflow
-- [ ] [Upgradability-Checkliste](upgradability.md) abgearbeitet, Evaluator sauber
-- [ ] Nach Änderungen die passenden Generierungs-/Cache-Befehle aus [Docker SDK Workflow](../references/30-docker-sdk-workflow.md) („Reihenfolge nach Codeänderungen“) ausgeführt
-- [ ] Generierte Ordner (`src/Generated`, `src/Orm`, `data/`) und `docker/deployment/` nicht committet
+## Upgradability and workflow
+- [ ] [Upgradability checklist](upgradability.md) worked through, Evaluator clean
+- [ ] After changes, the matching generation/cache commands from [Docker SDK Workflow](../references/30-docker-sdk-workflow.md) ("Order after code changes") executed
+- [ ] Generated folders (`src/Generated`, `src/Orm`, `data/`) and `docker/deployment/` not committed

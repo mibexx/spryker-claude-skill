@@ -50,8 +50,8 @@ class ProductBadgesRestApiCest
     }
 
     /**
-     * Setzt voraus, dass die Badges nach dem Anlegen publiziert und nach Redis synchronisiert wurden
-     * (CI: `codecept fixtures`, dann `queue:worker:start --stop-when-empty`, dann `codecept run`).
+     * Requires that the badges were published and synchronized to Redis after creation
+     * (CI: `codecept fixtures`, then `queue:worker:start --stop-when-empty`, then `codecept run`).
      *
      * @depends loadFixtures
      */

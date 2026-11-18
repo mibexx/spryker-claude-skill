@@ -1,9 +1,9 @@
-# Template: widget (Yves-Widget)
+# Template: widget (Yves widget)
 
-## Zweck
-Yves-Widget `ProductBadgeWidget`: rendert die Badges eines Abstract-Produkts (Daten aus `Pyz\Client\ProductBadge\ProductBadgeClientInterface`, Storage) als Liste. Wird in beliebigen Twig-Templates per `{% widget 'ProductBadgeWidget' args [idProductAbstract] only %}` eingebunden. Erklärung: [16-widgets](../../references/16-widgets.md).
+## Purpose
+Yves widget `ProductBadgeWidget`: renders the badges of an abstract product (data from `Pyz\Client\ProductBadge\ProductBadgeClientInterface`, Storage) as a list. Included in any Twig template via `{% widget 'ProductBadgeWidget' args [idProductAbstract] only %}`. Explanation: [16-widgets](../../references/16-widgets.md).
 
-## Dateiliste (Zielpfad unter Projektroot)
+## File list (target path below the project root)
 ```
 src/Pyz/Yves/ProductBadgeWidget/Widget/ProductBadgeWidget.php
 src/Pyz/Yves/ProductBadgeWidget/ProductBadgeWidgetFactory.php
@@ -11,14 +11,14 @@ src/Pyz/Yves/ProductBadgeWidget/ProductBadgeWidgetDependencyProvider.php
 src/Pyz/Yves/ProductBadgeWidget/Theme/default/views/product-badge-widget/product-badge-widget.twig
 ```
 
-## Platzhalter / Anpassung
-- `ProductBadgeWidget` (Modul, Klasse, `getName()`), `product-badge-widget` (View-Ordner und Dateiname) ersetzen. `getName()` = Klassenname, im Scope eindeutig (sonst `UniqueWidgetNameException`).
-- Konstruktor-Argumente = exakt die Werte aus `args [...]` im Twig-Tag (hier `int $idProductAbstract`; falscher Typ führt zu `WidgetRenderException`).
-- Das Template erweitert `template('widget')` und füllt den Block `body`; `isVisible` blendet bei leerer Liste alles aus. CSS-Klassen (`list`, `label`) sind Beispiele aus dem Atomic-Frontend, bei Bedarf eigene Komponente anlegen (→ [15-yves-frontend-atomic](../../references/15-yves-frontend-atomic.md)).
-- Die Klasse nutzt `Spryker\Yves\Kernel\Widget\AbstractWidget` (nicht die deprecated `AbstractWidgetPlugin`).
+## Placeholders / customization
+- Replace `ProductBadgeWidget` (module, class, `getName()`), `product-badge-widget` (view folder and file name). `getName()` = class name, unique in scope (otherwise `UniqueWidgetNameException`).
+- Constructor arguments = exactly the values from `args [...]` in the Twig tag (here `int $idProductAbstract`; a wrong type leads to `WidgetRenderException`).
+- The template extends `template('widget')` and fills the block `body`; `isVisible` hides everything when the list is empty. CSS classes (`list`, `label`) are examples from the atomic frontend; create your own component if needed (→ [15-yves-frontend-atomic](../../references/15-yves-frontend-atomic.md)).
+- The class uses `Spryker\Yves\Kernel\Widget\AbstractWidget` (not the deprecated `AbstractWidgetPlugin`).
 
-## Registrierung
-1. Global: `src/Pyz/Yves/ShopApplication/ShopApplicationDependencyProvider.php`, Methode `getGlobalWidgets()` (Liste von Klassennamen, kein `new`):
+## Registration
+1. Global: `src/Pyz/Yves/ShopApplication/ShopApplicationDependencyProvider.php`, method `getGlobalWidgets()` (list of class names, no `new`):
    ```php
    use Pyz\Yves\ProductBadgeWidget\Widget\ProductBadgeWidget;
    ...
@@ -30,29 +30,29 @@ src/Pyz/Yves/ProductBadgeWidget/Theme/default/views/product-badge-widget/product
        ];
    }
    ```
-   Alternativ seitenspezifisch: Klasse in der Widget-Liste des Page-Moduls (z. B. `ProductDetailPageDependencyProvider::getProductDetailPageWidgetPlugins()`, im Release standardmäßig leer) und diese Liste im Controller an `$this->view($data, $widgets, $template)` übergeben. Der Provider des Page-Moduls muss dafür im Pyz-Modul überschrieben werden.
-2. Einbinden in Twig (Beispiel Produktdetailseite): **Im Release 202610.0 überschreibt Pyz die PDP bereits** (`src/Pyz/Yves/ProductDetailPage/Theme/default/views/pdp/pdp.twig`, erbt vom Core-`pdp` und nutzt `image-gallery`, nicht `product-carousel`). Das Widget live im Block `title` hinter `</h1>` ergänzen (verifiziert):
+   Alternatively page-specific: class in the widget list of the page module (e.g. `ProductDetailPageDependencyProvider::getProductDetailPageWidgetPlugins()`, empty by default in the release) and pass this list in the controller to `$this->view($data, $widgets, $template)`. The page module's provider must be overridden in the Pyz module for this.
+2. Including in Twig (example product detail page): **In release 202610.0, Pyz already overrides the PDP** (`src/Pyz/Yves/ProductDetailPage/Theme/default/views/pdp/pdp.twig`, inherits from the core `pdp` and uses `image-gallery`, not `product-carousel`). Add the widget live in the block `title` after `</h1>` (verified):
    ```twig
    {% widget 'ProductBadgeWidget' args [data.product.idProductAbstract] only %}{% endwidget %}
    ```
-   Eine Kopie von `product-carousel.twig` im Pyz-Modul bleibt wirkungslos, solange die Pyz-PDP den Core-`product-carousel` nicht einbindet (live ausprobiert: keine Ausgabe). Hat das Projekt keine eigene PDP, Core-Template nicht in `vendor/` ändern, sondern gleichnamige Datei im Pyz-Modul anlegen, z. B. `src/Pyz/Yves/ProductDetailPage/Theme/default/components/molecules/product-carousel/product-carousel.twig` (Kopie des Core-Templates; Core nutzt dort `{% widget 'ProductAbstractLabelWidget' args [data.product.idProductAbstract] only %}`) und ergänzen:
+   A copy of `product-carousel.twig` in the Pyz module has no effect as long as the Pyz PDP does not include the core `product-carousel` (tried live: no output). If the project has no PDP of its own, do not change the core template in `vendor/`, but create a file with the same name in the Pyz module, e.g. `src/Pyz/Yves/ProductDetailPage/Theme/default/components/molecules/product-carousel/product-carousel.twig` (copy of the core template; the core uses `{% widget 'ProductAbstractLabelWidget' args [data.product.idProductAbstract] only %}` there) and add:
    ```twig
    {% widget 'ProductBadgeWidget' args [data.product.idProductAbstract] only %}{% endwidget %}
    ```
-   Ist das Widget nicht registriert, rendert der Tag stillschweigend nichts. Debug: `{{ widgetGlobalExists('ProductBadgeWidget') ? 'ja' : 'nein' }}`.
+   If the widget is not registered, the tag silently renders nothing. Debug: `{{ widgetGlobalExists('ProductBadgeWidget') ? 'yes' : 'no' }}`.
 
-## Befehle danach
-`cache:empty-all` und `npm run yves` `[live verifiziert (202610.0)]` (Widget im Shop installiert und gerendert)
+## Commands afterwards
+`cache:empty-all` and `npm run yves` `[live verified (202610.0)]` (widget installed in the shop and rendered)
 ```bash
-docker/sdk console cache:empty-all                         # Zed-Konsole
-docker/sdk cli npm run yves                                # nur falls eigenes SCSS/TS ergänzt wurde (Annahme, siehe Referenz 15)
+docker/sdk console cache:empty-all                         # Zed console
+docker/sdk cli npm run yves                                # only if your own SCSS/TS was added (assumption, see reference 15)
 ```
-Neue Twig-Dateien in Pyz-Modulen werden im Dev-Betrieb meist direkt gefunden; bei Problemen Twig-Cache leeren bzw. Rebuild (`docker/sdk up --build`).
+New Twig files in Pyz modules are usually found directly in dev mode; in case of problems clear the Twig cache or rebuild (`docker/sdk up --build`).
 
-## Verwendete Quelle (Vorbild)
-- `src/Pyz/Yves/CustomerFullNameWidget/` (Widget, Factory, DependencyProvider, Twig-View, Registrierung in `getGlobalWidgets()`)
+## Source used (model)
+- `src/Pyz/Yves/CustomerFullNameWidget/` (widget, Factory, DependencyProvider, Twig view, registration in `getGlobalWidgets()`)
 - `vendor/spryker/kernel/src/Spryker/Yves/Kernel/Widget/AbstractWidget.php`, `Dependency/Widget/WidgetInterface.php`
 - `vendor/spryker-shop/shop-ui/src/SprykerShop/Yves/ShopUi/Theme/default/templates/widget/widget.twig`
 
-## Verifikationsstatus
-Basisklasse, Interface (`getName()`, `getTemplate()`, `addParameter()`), Twig-Basis-Template und Registrierungsmethode `getGlobalWidgets()` gegen `vendor/` und `src/Pyz` geprüft. Durchgespielt im Shop 202610.0: Registrierung in `getGlobalWidgets()`, Einbindung in `pdp.twig`; die Produktseite `/en/hdmi-cable-1` (Abstract 4) rendert `<li class="list__item" data-qa="product-badge-new">`, Abstracts ohne Badge (`/en/computer-6`) rendern nichts. `code:sniff:style` Exit 0, PHPStan Level 6 ohne Befund. `[live verifiziert (202610.0)]`
+## Verification status
+Base class, interface (`getName()`, `getTemplate()`, `addParameter()`), Twig base template and registration method `getGlobalWidgets()` checked against `vendor/` and `src/Pyz`. Walked through in shop 202610.0: registration in `getGlobalWidgets()`, inclusion in `pdp.twig`; the product page `/en/hdmi-cable-1` (abstract 4) renders `<li class="list__item" data-qa="product-badge-new">`, abstracts without a badge (`/en/computer-6`) render nothing. `code:sniff:style` exit 0, PHPStan level 6 without findings. `[live verified (202610.0)]`

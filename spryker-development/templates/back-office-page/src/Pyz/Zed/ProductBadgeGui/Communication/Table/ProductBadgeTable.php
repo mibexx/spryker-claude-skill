@@ -24,7 +24,7 @@ class ProductBadgeTable extends AbstractTable
 
     protected function configure(TableConfiguration $config): TableConfiguration
     {
-        // Absolute URL: ruft ListController::tableAction() auf
+        // Absolute URL: calls ListController::tableAction()
         $config->setUrl(ProductBadgeGuiConfig::URL_PRODUCT_BADGE_LIST_TABLE);
         $config->setHeader([
             SpyProductBadgeTableMap::COL_ID_PRODUCT_BADGE => 'ID',

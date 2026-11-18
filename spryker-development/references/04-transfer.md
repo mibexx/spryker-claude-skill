@@ -1,72 +1,72 @@
-# Transfer-Objekte (Recherche T-04)
+# Transfer objects
 
-> Status: Release b2b-demo-shop 202610.0 (spryker/kernel 3.87.1). Generator, XSD, Merge-Regeln und generierte Klassen wurden am Code geprüft; Doku-Seiten waren abrufbar (HTTP 200), eine eigene Doku-Version für 202610.0 gibt es nicht ("latest"). `[code-verifiziert, Doku nicht abgeglichen]` gilt für Detailaussagen, die nur am Code belegt sind. Nicht ausgeführt: eigener Generatorlauf mit neuem XML im Projekt (Projekt blieb unverändert); die Befehle sind registriert `[live verifiziert (202610.0)]`, `transfer:generate` mit Sandbox-Pfad lief im Template-Test des Reviewers. Annahmen sind markiert.
+> Status: release b2b-demo-shop 202610.0 (spryker/kernel 3.87.1). Generator, XSD, merge rules and generated classes were checked against the code; docs pages were reachable (HTTP 200), there is no separate docs version for 202610.0 ("latest"). `[code-verified, docs not cross-checked]` applies to detailed statements backed only by code. Not executed: an own generator run with new XML in the project (project remained unchanged); the commands are registered `[live verified (202610.0)]`, `transfer:generate` with a sandbox path ran in the reviewer's template test. Assumptions are marked.
 
-## Zweck
+## Purpose
 
-Ein Transfer ist ein generierter, typisierter Daten-Container (DTO), nutzbar in Yves, Zed, Glue, Client und Service. Er ist der Standard-Datentyp für Facade-, Client- und Repository-Signaturen. Diese Referenz beschreibt Definition (XML), Merge von Core- und Projekt-Definitionen, Generierung und Konventionen. Propel-Schema und Entity-Transfers: [Propel](05-propel-persistenz.md). Modulaufbau: [Projektmodul](02-projektmodul.md).
+A Transfer is a generated, typed data container (DTO), usable in Yves, Zed, Glue, Client and Service. It is the standard data type for Facade, Client and Repository signatures. This reference describes definition (XML), merging of core and project definitions, generation and conventions. Propel schema and entity transfers: [Propel](05-propel-persistence.md). Module structure: [Project module](02-project-module.md).
 
-## Konzepte
+## Concepts
 
-- **Nur XML.** Definition in `*.transfer.xml`, generiert wird `src/Generated/Shared/Transfer/<Name>Transfer.php` (Namespace `Generated\Shared\Transfer`, Basis `Spryker\Shared\Kernel\Transfer\AbstractTransfer`). Im Release liegen 2226 generierte Dateien, 8 Definitionen in `src/Pyz/**`, 871 in `vendor/spryker` und `vendor/spryker-shop`. `src/Generated/` nie committen oder editieren ("EVERY CHANGE WILL BE LOST", in `.gitignore`).
-- **Fundorte** (`vendor/spryker/transfer/src/Spryker/Zed/Transfer/TransferConfig.php`):
+- **XML only.** Definition in `*.transfer.xml`, generated into `src/Generated/Shared/Transfer/<Name>Transfer.php` (namespace `Generated\Shared\Transfer`, base `Spryker\Shared\Kernel\Transfer\AbstractTransfer`). The release contains 2226 generated files, 8 definitions in `src/Pyz/**`, 871 in `vendor/spryker` and `vendor/spryker-shop`. Never commit or edit `src/Generated/` ("EVERY CHANGE WILL BE LOST", in `.gitignore`).
+- **Locations** (`vendor/spryker/transfer/src/Spryker/Zed/Transfer/TransferConfig.php`):
 
-| Methode | Wert |
+| Method | Value |
 |---|---|
-| `getApplicationSourceDirectoryGlobPattern()` | `src/*/Shared/*/Transfer/` (also `src/Pyz/Shared/<Modul>/Transfer/`) |
-| `getSprykerCoreSourceDirectoryGlobPattern()` | `vendor/*/*/src/*/Shared/*/Transfer/` (protected, `@deprecated` -> `getCoreSourceDirectoryGlobPatterns()`, intern weiter genutzt) |
+| `getApplicationSourceDirectoryGlobPattern()` | `src/*/Shared/*/Transfer/` (i.e. `src/Pyz/Shared/<Module>/Transfer/`) |
+| `getSprykerCoreSourceDirectoryGlobPattern()` | `vendor/*/*/src/*/Shared/*/Transfer/` (protected, `@deprecated` -> `getCoreSourceDirectoryGlobPatterns()`, still used internally) |
 | `getTransferFileNamePattern()` | `/(.*?).transfer.xml/` |
 | `getClassTargetDirectory()` | `src/Generated/Shared/Transfer/` |
-| `getDataBuilderSourceDirectories()` | wie Transfers plus `tests/_data` und `vendor/*/*/tests/_data/` |
+| `getDataBuilderSourceDirectories()` | like transfers plus `tests/_data` and `vendor/*/*/tests/_data/` |
 
-  Konvention: Dateiname `<modul_snake>.transfer.xml` im Ordner `Shared/<Modul>/Transfer/`. Mehrere Dateien pro Ordner sind möglich.
-- **Property-Typen** (XSD `transfer-01.xsd`, Code): `string`, `int`, `float`, `bool`, `array`, `mixed`, `decimal` (einziges Value Object, `Spryker\DecimalObject\Decimal`), Transfername (`Customer`), Collection (`Customer[]`), typisierte Arrays (`string[]`, `int[]`, ...). Die Doku nennt nur `int, string, bool, array`.
-- **Property-Attribute:** `name` (camelCase, Pflicht), `type` (Pflicht), `singular` (Name für `add…`), `associative="true"`, `strict="true"`, `deprecated="Text"`, `description`, `sensitive="true"` (`#[SensitiveParameter]`), `restRequestParameter`/`restResponseParameter` ([Glue Storefront](12-glue-storefront.md)), `example`/`examples`.
-- **Namenssuffix:** Der Generator hängt `Transfer` an. Im XML steht `Customer`, nicht `CustomerTransfer`. Pyz aktiviert `isTransferSuffixCheckStrict() = true` (Suffix wird nur ausgelassen, wenn der Name auf `Transfer` endet; Default `false`: sobald `Transfer` irgendwo im Namen steht, entfällt es).
-- **Merge (`TransferDefinitionMerger`):** Alle Definitionen mit gleichem Namen (`User` = `UserTransfer`) werden zu **einer** Klasse vereinigt. Core und Pyz sind gleichrangig, es gibt keine Vererbung und keine Reihenfolge. So erweitert Pyz einen Core-Transfer: derselbe `<transfer name>` mit zusätzlichen Properties. Gleichnamige Properties müssen in **allen** Attributen identisch sein (`type`, `singular`, `associative`, `strict`), sonst Abbruch `Value mismatch for "<Transfer>.<property>" transfer property`.
-  - `bundles` (Quell-Module, ergibt `@module A|B`) wird vereinigt. `deprecated`: erste gesetzte gilt. `description`: Strategie `getPropertyDescriptionMergeStrategy()`, Default `GET_FIRST`. `dataBuilderRule` darf nur mit `isProjectTransferOverrideActive()` (Default `false`) abweichen.
-  - `strict` muss an Transfer und Property in allen Definitionen gleich gesetzt (oder gleich fehlend) sein, sonst `TransferDefinitionMismatchException` ("Strict mode violation detected for transfer …").
-  - `TransferConfig::getTypeShims()` korrigiert falsche Core-Typen (z. B. `KeyTranslation.glossaryKey` int -> string). Nicht projektseitig erweitern.
-- **`strict`:** An einer Transfer-Property: `fromArray()` wirft `InvalidStrictTypeException`, wenn ein Transfer-Wert (nach der Initialisierung aus Arrays) kein `TransferInterface` ist. Auf Transfer-Ebene (z. B. `UserCollection` in `acl.transfer.xml`) setzt es `is_strict` für die Properties. Leere primitive Arrays mit `strict` gelten bei `require…` als nicht gesetzt. Für neue Transfers `strict="true"` setzen. `[Annahme]` Zusammenspiel von Transfer- und Property-Ebene nicht an jedem Generatorzweig geprüft.
-- **Generierte Methoden** (belegt an `UserTransfer`, `ProductConcreteTransfer`):
-  - Konstante je Property: `UserTransfer::IS_MERCHANT_AGENT = 'isMerchantAgent'` (`public const string`).
-  - Skalar: `setX()`, `getX()` (nullable), `getXOrFail()` (wirft `NullValueException`), `setXOrFail()`, `requireX()` (wirft `RequiredTransferPropertyException`).
-  - Collection `Foo[]`: `setFoos(ArrayObject)`, `getFoos(): ArrayObject`, `addFoo(FooTransfer)`, `requireFoos()`. Collections sind nie `null`. `…OrFail` gibt es nicht für Collections und Arrays.
-  - Allgemein: `fromArray(array $data, $ignoreMissingProperty = false)` (akzeptiert snake_case, camelCase, PascalCase), `toArray($isRecursive = true, $camelCasedKeys = false)` (snake_case), `modifiedToArray()`, `isPropertyModified()`.
-- **Entity-Transfers** (`Spy<Tabelle>EntityTransfer`, Basis `AbstractEntityTransfer`) entstehen aus den Propel-Schemas, nicht aus `*.transfer.xml` ([Propel](05-propel-persistenz.md)).
+  Convention: file name `<module_snake>.transfer.xml` in the folder `Shared/<Module>/Transfer/`. Multiple files per folder are possible.
+- **Property types** (XSD `transfer-01.xsd`, code): `string`, `int`, `float`, `bool`, `array`, `mixed`, `decimal` (the only value object, `Spryker\DecimalObject\Decimal`), transfer name (`Customer`), collection (`Customer[]`), typed arrays (`string[]`, `int[]`, ...). The docs only mention `int, string, bool, array`.
+- **Property attributes:** `name` (camelCase, required), `type` (required), `singular` (name for `add…`), `associative="true"`, `strict="true"`, `deprecated="Text"`, `description`, `sensitive="true"` (`#[SensitiveParameter]`), `restRequestParameter`/`restResponseParameter` ([Glue Storefront](12-glue-storefront.md)), `example`/`examples`.
+- **Name suffix:** the generator appends `Transfer`. The XML says `Customer`, not `CustomerTransfer`. Pyz enables `isTransferSuffixCheckStrict() = true` (the suffix is only omitted if the name ends with `Transfer`; default `false`: as soon as `Transfer` appears anywhere in the name, it is omitted).
+- **Merge (`TransferDefinitionMerger`):** all definitions with the same name (`User` = `UserTransfer`) are combined into **one** class. Core and Pyz have equal rank, there is no inheritance and no ordering. This is how Pyz extends a core Transfer: the same `<transfer name>` with additional properties. Properties with the same name must be identical in **all** attributes (`type`, `singular`, `associative`, `strict`), otherwise abort with `Value mismatch for "<Transfer>.<property>" transfer property`.
+  - `bundles` (source modules, results in `@module A|B`) is merged. `deprecated`: the first one set wins. `description`: strategy `getPropertyDescriptionMergeStrategy()`, default `GET_FIRST`. `dataBuilderRule` may only differ with `isProjectTransferOverrideActive()` (default `false`).
+  - `strict` must be set identically (or be identically absent) on the Transfer and the property in all definitions, otherwise `TransferDefinitionMismatchException` ("Strict mode violation detected for transfer …").
+  - `TransferConfig::getTypeShims()` corrects wrong core types (e.g. `KeyTranslation.glossaryKey` int -> string). Do not extend on the project side.
+- **`strict`:** on a Transfer property: `fromArray()` throws `InvalidStrictTypeException` if a Transfer value (after initialization from arrays) is not a `TransferInterface`. At Transfer level (e.g. `UserCollection` in `acl.transfer.xml`) it sets `is_strict` for the properties. Empty primitive arrays with `strict` count as not set for `require…`. Set `strict="true"` for new Transfers. `[Assumption]` Interplay of Transfer and property level not checked on every generator branch.
+- **Generated methods** (verified on `UserTransfer`, `ProductConcreteTransfer`):
+  - Constant per property: `UserTransfer::IS_MERCHANT_AGENT = 'isMerchantAgent'` (`public const string`).
+  - Scalar: `setX()`, `getX()` (nullable), `getXOrFail()` (throws `NullValueException`), `setXOrFail()`, `requireX()` (throws `RequiredTransferPropertyException`).
+  - Collection `Foo[]`: `setFoos(ArrayObject)`, `getFoos(): ArrayObject`, `addFoo(FooTransfer)`, `requireFoos()`. Collections are never `null`. `…OrFail` does not exist for collections and arrays.
+  - General: `fromArray(array $data, $ignoreMissingProperty = false)` (accepts snake_case, camelCase, PascalCase), `toArray($isRecursive = true, $camelCasedKeys = false)` (snake_case), `modifiedToArray()`, `isPropertyModified()`.
+- **Entity transfers** (`Spy<Table>EntityTransfer`, base `AbstractEntityTransfer`) are created from the Propel schemas, not from `*.transfer.xml` ([Propel](05-propel-persistence.md)).
 
-## Anleitung
+## Instructions
 
-1. **Vor dem Anlegen im Core suchen:** `grep -rn 'name="Quote"' vendor/spryker/*/src --include=*.transfer.xml`. Vorhandene Transfers wiederverwenden oder additiv erweitern.
-2. **Datei anlegen:** `src/Pyz/Shared/<Modul>/Transfer/<modul_snake>.transfer.xml` mit `xmlns="spryker:transfer-01"` (fehlt der Namespace, wird die Datei nicht gültig geparst).
-3. **Pro Use-Case eigene Transfers:** `<Name>`, `<Name>Criteria`, `<Name>Collection` (bei Schreibvorgängen `…CollectionResponse`) statt Skalar-Parameterlisten. Collections mit `singular`.
-4. **Core-Transfer erweitern:** denselben Transfernamen mit nur den neuen Properties deklarieren. `type`, `singular`, `associative`, `strict` exakt wie im Core übernehmen, falls die Property dort existiert (`grep -rn 'name="y"' vendor/spryker/*/src src/Pyz --include=*.transfer.xml`).
-5. **Generieren und prüfen** `[live verifiziert (202610.0)]` (registriert):
+1. **Search the core before creating:** `grep -rn 'name="Quote"' vendor/spryker/*/src --include=*.transfer.xml`. Reuse existing Transfers or extend them additively.
+2. **Create the file:** `src/Pyz/Shared/<Module>/Transfer/<module_snake>.transfer.xml` with `xmlns="spryker:transfer-01"` (if the namespace is missing, the file is not parsed validly).
+3. **Dedicated Transfers per use case:** `<Name>`, `<Name>Criteria`, `<Name>Collection` (for write operations `…CollectionResponse`) instead of scalar parameter lists. Collections with `singular`.
+4. **Extend a core Transfer:** declare the same Transfer name with only the new properties. Copy `type`, `singular`, `associative`, `strict` exactly from the core if the property exists there (`grep -rn 'name="y"' vendor/spryker/*/src src/Pyz --include=*.transfer.xml`).
+5. **Generate and validate** `[live verified (202610.0)]` (registered):
    ```bash
    docker/sdk cli console transfer:generate
    docker/sdk cli console transfer:validate -vv
    ```
-6. **Entity-Transfers** nach Schema-Änderungen: erst `propel:schema:copy`, dann `docker/sdk cli console transfer:entity:generate`.
+6. **Entity transfers** after schema changes: first `propel:schema:copy`, then `docker/sdk cli console transfer:entity:generate`.
 
-Konsolenkommandos (Kommandos im Container über `docker/sdk cli console <cmd>`) `[live verifiziert (202610.0)]` (alle in `console list` registriert):
+Console commands (commands in the container via `docker/sdk cli console <cmd>`) `[live verified (202610.0)]` (all registered in `console list`):
 
-| Kommando | Wirkung |
+| Command | Effect |
 |---|---|
-| `transfer:generate` | Daten-Transfers aus `*.transfer.xml` (`TransferGeneratorConsole`) |
-| `transfer:entity:generate` | Entity-Transfers aus `src/Orm/Propel/Schema/*.schema.xml` (Klasse im Modul `propel`: `EntityTransferGeneratorConsole`) |
-| `transfer:databuilder:generate` | `<Name>Builder` nach `src/Generated/Shared/DataBuilder/` (nur dev/test) |
-| `transfer:validate [-b <modul>] [-vv]` | XSD- und Merge-Prüfung, Exit-Code 0 bei Erfolg |
-| `transfer:remove`, `transfer:entity:remove`, `transfer:databuilder:remove` | generierten Code löschen |
+| `transfer:generate` | data transfers from `*.transfer.xml` (`TransferGeneratorConsole`) |
+| `transfer:entity:generate` | entity transfers from `src/Orm/Propel/Schema/*.schema.xml` (class in module `propel`: `EntityTransferGeneratorConsole`) |
+| `transfer:databuilder:generate` | `<Name>Builder` into `src/Generated/Shared/DataBuilder/` (dev/test only) |
+| `transfer:validate [-b <module>] [-vv]` | XSD and merge check, exit code 0 on success |
+| `transfer:remove`, `transfer:entity:remove`, `transfer:databuilder:remove` | delete generated code |
 
-`list transfer` zeigt in der Installation sieben Kommandos. Registriert in `src/Pyz/Zed/Console/ConsoleDependencyProvider.php`: `TransferGeneratorConsole`, `RemoveTransferConsole`, `EntityTransferGeneratorConsole`; `ValidatorConsole` und DataBuilder-Konsolen nur bei `isDevelopmentConsoleCommandsEnabled()`. Die Install-Recipes (`config/install/*.yml`) löschen zuerst (`remove-transfer` u. a.) und generieren dann ([Docker SDK](30-docker-sdk-workflow.md)).
+`list transfer` shows seven commands in the installation. Registered in `src/Pyz/Zed/Console/ConsoleDependencyProvider.php`: `TransferGeneratorConsole`, `RemoveTransferConsole`, `EntityTransferGeneratorConsole`; `ValidatorConsole` and DataBuilder consoles only with `isDevelopmentConsoleCommandsEnabled()`. The install recipes (`config/install/*.yml`) first delete (`remove-transfer` among others) and then generate ([Docker SDK](30-docker-sdk-workflow.md)).
 
-Projekt-Config `src/Pyz/Zed/Transfer/TransferConfig.php` (aktiv): `isTransferXmlValidationEnabled()`, `isTransferSuffixCheckStrict()`, `isArrayRequireValidationEnabled()` (`requireX` schlägt bei `[]` fehl). Nicht aktiv (Default `false`): `isTransferNameValidated()`, `isCaseValidated()`, `isSingularRequired()`. Für Neuprojekte sinnvoll, für Bestand erst nach Bereinigung.
+Project config `src/Pyz/Zed/Transfer/TransferConfig.php` (active): `isTransferXmlValidationEnabled()`, `isTransferSuffixCheckStrict()`, `isArrayRequireValidationEnabled()` (`requireX` fails on `[]`). Not active (default `false`): `isTransferNameValidated()`, `isCaseValidated()`, `isSingularRequired()`. Useful for new projects, for existing ones only after cleanup.
 
-Data Builder (Tests, Einsatz in [Tests](26-tests.md)): Definition `*.databuilder.xml` unter `tests/_data/` mit je Property `name` und `dataBuilderRule` (Faker). Im Projekt gab es keine eigenen `*.databuilder.xml`; eigene Builder gehören nach `tests/_data/`. Das `strict`-Attribut muss mit der Haupt-Transfer-Definition übereinstimmen (strict dort -> `strict="true"` auch in der DataBuilder-XML), sonst bricht `transfer:databuilder:generate` mit `TransferDefinitionMismatchException` ab `[live verifiziert (202610.0)]`.
+Data Builder (tests, usage in [Tests](26-tests.md)): definition `*.databuilder.xml` under `tests/_data/` with `name` and `dataBuilderRule` (Faker) per property. The project had no custom `*.databuilder.xml`; custom builders belong in `tests/_data/`. The `strict` attribute must match the main Transfer definition (strict there -> `strict="true"` in the DataBuilder XML as well), otherwise `transfer:databuilder:generate` aborts with `TransferDefinitionMismatchException` `[live verified (202610.0)]`.
 
-## Beispiele
+## Examples
 
-Template (vollständig): [`transfer-and-propel`](../templates/transfer-and-propel/README.md). Laufbeispiel ProductBadge, Pfad `src/Pyz/Shared/ProductBadge/Transfer/product_badge.transfer.xml`:
+Template (complete): [`transfer-and-propel`](../templates/transfer-and-propel/README.md). Running example ProductBadge, path `src/Pyz/Shared/ProductBadge/Transfer/product_badge.transfer.xml`:
 
 ```xml
 <?xml version="1.0"?>
@@ -92,7 +92,7 @@ Template (vollständig): [`transfer-and-propel`](../templates/transfer-and-prope
 </transfers>
 ```
 
-Nutzung (Auszug eines Readers, `getXOrFail()` statt `requireX()->getX()`):
+Usage (excerpt from a reader, `getXOrFail()` instead of `requireX()->getX()`):
 
 ```php
 $productBadgeCollectionTransfer = new ProductBadgeCollectionTransfer();
@@ -104,7 +104,7 @@ foreach ($productBadgeCriteriaTransfer->getBadgeKeys() as $badgeKey) {
 }
 ```
 
-Core erweitern, echt (`src/Pyz/Shared/ProductStorage/Transfer/product_storage.transfer.xml`):
+Extending the core, real (`src/Pyz/Shared/ProductStorage/Transfer/product_storage.transfer.xml`):
 
 ```xml
 <transfer name="ProductView">
@@ -113,9 +113,9 @@ Core erweitern, echt (`src/Pyz/Shared/ProductStorage/Transfer/product_storage.tr
 </transfer>
 ```
 
-Auffälligkeit im Demo-Shop derselben Datei: `ProductAbstractStorage.roductSetIds` (fehlendes "p") ist vermutlich ein Tippfehler `[Annahme]`, wird aber generiert. Nicht als Muster übernehmen.
+Oddity in the demo shop in the same file: `ProductAbstractStorage.roductSetIds` (missing "p") is probably a typo `[Assumption]`, but it is generated. Do not adopt as a pattern.
 
-Core-Definition mit Collection, `associative`, `strict`, `deprecated` (`vendor/spryker/acl/.../acl.transfer.xml`):
+Core definition with collection, `associative`, `strict`, `deprecated` (`vendor/spryker/acl/.../acl.transfer.xml`):
 
 ```xml
 <property name="groups" type="Group[]" singular="group"/>
@@ -125,50 +125,50 @@ Core-Definition mit Collection, `associative`, `strict`, `deprecated` (`vendor/s
 <transfer name="UserCollection" strict="true">
 ```
 
-Fehler früh erkennen:
+Detect errors early:
 
 ```php
-$email = $customerTransfer->getEmailOrFail();                // NullValueException, wenn nicht gesetzt
-$array = $customerTransfer->toArray();                       // rekursiv, snake_case
-$copy = (new CustomerTransfer())->fromArray($array, true);   // true: unbekannte Keys ignorieren
+$email = $customerTransfer->getEmailOrFail();                // NullValueException if not set
+$array = $customerTransfer->toArray();                       // recursive, snake_case
+$copy = (new CustomerTransfer())->fromArray($array, true);   // true: ignore unknown keys
 ```
 
-## Fallstricke
+## Pitfalls
 
-1. Generierten Code editiert oder committet: geht beim nächsten `transfer:generate` verloren.
-2. Nach XML-Änderung nicht neu generiert: `Call to undefined method …setFoo()`.
-3. `Value mismatch for "X.y" transfer property`: gleiche Property mit anderem `type`, `singular`, `associative` oder `strict` in einem anderen Modul. Gegenstelle per `grep` suchen, Pyz an Core angleichen.
-4. `Strict mode violation detected …` (`TransferDefinitionMismatchException`): `strict` nicht in allen Definitionen gleich.
-5. `InvalidStrictTypeException` bei `fromArray()`: verschachtelte Daten als Transfer statt als Array übergeben.
-6. `RequiredTransferPropertyException` / `NullValueException`: `requireX()` / `getXOrFail()` auf ungesetzter Property.
-7. Namen mit "Transfer" mittendrin werden ohne `isTransferSuffixCheckStrict()` nicht suffigiert. `CustomerTransfer` im XML erzeugt bei Default keinen doppelten Suffix, bei `isTransferNameValidated() = true` aber `InvalidNameException`.
-8. Collection ohne `singular`: `add…` wird per Inflection geraten, bei `isSingularRequired() = true` bricht der Generator ab (`InvalidSingularPropertyNameException`). Immer setzen.
-9. `associative="true"` an falschem Typ oder Wert (`InvalidAssociativeTypeException`, `InvalidAssociativeValueException`).
-10. Tippfehler in Property-Namen erzeugen still eine zusätzliche Property (Beispiel `roductSetIds`).
-11. `array` als Allzweck-Container: schwer zu validieren, eigene Transfers anlegen. Sensible Felder (Passwörter, Tokens) mit `sensitive="true"` markieren.
-12. Business-Logik oder eigene Klassen im Transfer: nicht vorgesehen. Mapping in Mapper-Klassen ([Propel](05-propel-persistenz.md)).
-13. Upgrader-Anti-Patterns: Core-`*.transfer.xml` in `vendor/` ändern, `src/Generated` committen, eigene Property mit gleichem Namen wie eine neue Core-Property, aber anderem Typ/`strict`, `isProjectTransferOverrideActive() = true` zum Überstimmen von Typen (das Feature ist nur für `dataBuilderRule` gedacht). Core-Transfers nur additiv erweitern ([Upgradability](28-upgradability.md)).
-14. Deprecations (Code 202610.0 hat Vorrang):
-    - `[Deprecated]` `TransferConfig::getEntitiesSourceDirectories()` -> `PropelFacadeInterface::getSchemaDirectory()`. In `src/Pyz/Zed/Transfer/TransferConfig.php` noch überschrieben, wirkungslos (kein Aufrufer, Verzeichnis `src/Orm/Propel/*/Schema/` existiert nicht) `[Annahme]` kann entfallen.
+1. Generated code edited or committed: lost on the next `transfer:generate`.
+2. Not regenerated after an XML change: `Call to undefined method …setFoo()`.
+3. `Value mismatch for "X.y" transfer property`: same property with a different `type`, `singular`, `associative` or `strict` in another module. Find the counterpart via `grep`, align Pyz with core.
+4. `Strict mode violation detected …` (`TransferDefinitionMismatchException`): `strict` not identical in all definitions.
+5. `InvalidStrictTypeException` on `fromArray()`: nested data passed as a Transfer instead of as an array.
+6. `RequiredTransferPropertyException` / `NullValueException`: `requireX()` / `getXOrFail()` on an unset property.
+7. Names with "Transfer" in the middle are not suffixed without `isTransferSuffixCheckStrict()`. `CustomerTransfer` in the XML does not create a double suffix by default, but with `isTransferNameValidated() = true` it raises `InvalidNameException`.
+8. Collection without `singular`: `add…` is guessed via inflection; with `isSingularRequired() = true` the generator aborts (`InvalidSingularPropertyNameException`). Always set it.
+9. `associative="true"` on a wrong type or value (`InvalidAssociativeTypeException`, `InvalidAssociativeValueException`).
+10. Typos in property names silently create an additional property (example `roductSetIds`).
+11. `array` as a general-purpose container: hard to validate, create dedicated Transfers. Mark sensitive fields (passwords, tokens) with `sensitive="true"`.
+12. Business logic or custom classes in the Transfer: not intended. Mapping in mapper classes ([Propel](05-propel-persistence.md)).
+13. Upgrader anti-patterns: changing core `*.transfer.xml` in `vendor/`, committing `src/Generated`, own property with the same name as a new core property but a different type/`strict`, `isProjectTransferOverrideActive() = true` to override types (the feature is only intended for `dataBuilderRule`). Extend core Transfers only additively ([Upgradability](28-upgradability.md)).
+14. Deprecations (code 202610.0 takes precedence):
+    - `[Deprecated]` `TransferConfig::getEntitiesSourceDirectories()` -> `PropelFacadeInterface::getSchemaDirectory()`. Still overridden in `src/Pyz/Zed/Transfer/TransferConfig.php`, without effect (no caller, directory `src/Orm/Propel/*/Schema/` does not exist) `[Assumption]` can be removed.
     - `[Deprecated]` `getSprykerCoreSourceDirectoryGlobPattern()` -> `getCoreSourceDirectoryGlobPatterns()`.
-    - `getAdditionalSourceDirectoryGlobPatterns()`: Doku nennt sie als Erweiterungspunkt für Zusatzverzeichnisse, im Code ist sie `protected` und `@deprecated`. Sie funktioniert weiterhin, ein dokumentierter Nachfolger fehlt `[Annahme]`, Doku-Nachfrage offen.
-    - `[Deprecated]` `ClassDefinition::setNameWithoutValidation()` ("Will be removed with the next major to enforce validation then"): Spryker wird `isTransferNameValidated()` künftig erzwingen.
-    - `requireX()`: laut Doku deprecated seit `spryker/transfer` 3.25.0, Ersatz `getXOrFail()`. Im Release weiter generiert und im Core verbreitet.
+    - `getAdditionalSourceDirectoryGlobPatterns()`: the docs name it as the extension point for additional directories, in the code it is `protected` and `@deprecated`. It still works, a documented successor is missing `[Assumption]`, docs inquiry open.
+    - `[Deprecated]` `ClassDefinition::setNameWithoutValidation()` ("Will be removed with the next major to enforce validation then"): Spryker will enforce `isTransferNameValidated()` in the future.
+    - `requireX()`: according to the docs deprecated since `spryker/transfer` 3.25.0, replacement `getXOrFail()`. Still generated in the release and widespread in the core.
 
-## Checkliste
+## Checklist
 
-- [ ] Transfer im Core gesucht, Wiederverwendung oder additive Erweiterung geprüft.
-- [ ] Datei `src/Pyz/Shared/<Modul>/Transfer/<modul_snake>.transfer.xml`, Namespace `spryker:transfer-01`.
-- [ ] Neue Transfers `strict="true"`, Collections mit `singular`, Typen eng (`int`, `string`, `Foo[]`, `string[]`).
-- [ ] Bei Core-Property: `type`/`singular`/`associative`/`strict` identisch zum Core.
-- [ ] `transfer:generate` und `transfer:validate -vv` laufen fehlerfrei.
-- [ ] `getXOrFail()` statt `requireX()`, keine Logik im Transfer.
-- [ ] Sensible Properties mit `sensitive="true"`.
-- [ ] Kein Eintrag in `vendor/` oder `src/Generated`.
+- [ ] Searched for the Transfer in the core, checked reuse or additive extension.
+- [ ] File `src/Pyz/Shared/<Module>/Transfer/<module_snake>.transfer.xml`, namespace `spryker:transfer-01`.
+- [ ] New Transfers `strict="true"`, collections with `singular`, narrow types (`int`, `string`, `Foo[]`, `string[]`).
+- [ ] For a core property: `type`/`singular`/`associative`/`strict` identical to core.
+- [ ] `transfer:generate` and `transfer:validate -vv` run without errors.
+- [ ] `getXOrFail()` instead of `requireX()`, no logic in the Transfer.
+- [ ] Sensitive properties with `sensitive="true"`.
+- [ ] No entry in `vendor/` or `src/Generated`.
 
-## Quellen
+## Sources
 
-Doku (https://docs.spryker.com/docs/):
+Docs (https://docs.spryker.com/docs/):
 - dg/dev/backend-development/data-manipulation/data-ingestion/structural-preparations/create-use-and-extend-the-transfer-objects.html
 - dg/dev/guidelines/testing-guidelines/data-builders.html
 
@@ -180,4 +180,4 @@ Code:
 - `vendor/spryker/acl/src/Spryker/Shared/Acl/Transfer/acl.transfer.xml`, `vendor/spryker/acl/tests/_data/acl.databuilder.xml`
 - `src/Pyz/Zed/Transfer/TransferConfig.php`, `src/Pyz/Zed/Console/ConsoleDependencyProvider.php`, `src/Pyz/Shared/*/Transfer/*.transfer.xml`, `config/install/{development,ci}.yml`
 
-Nachbar-Referenzen: [Architektur](01-architektur.md), [Projektmodul](02-projektmodul.md), [Propel und Persistenz](05-propel-persistenz.md), [Glue Storefront](12-glue-storefront.md), [Console](22-console-cron-queue.md), [Tests](26-tests.md). Template: [transfer-and-propel](../templates/transfer-and-propel/README.md).
+Neighbor references: [Architecture](01-architecture.md), [Project module](02-project-module.md), [Propel and persistence](05-propel-persistence.md), [Glue Storefront](12-glue-storefront.md), [Console](22-console-cron-queue.md), [Tests](26-tests.md). Template: [transfer-and-propel](../templates/transfer-and-propel/README.md).

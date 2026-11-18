@@ -1,58 +1,58 @@
-# Back Office (Zed-UI): Seiten, Tabellen, Formulare, Navigation, Übersetzungen, ACL (Recherche T-18)
+# Back Office (Zed UI): pages, tables, forms, navigation, translations, ACL
 
-> Status: Release 202610.0 (kernel 3.87.1, Symfony 6.4.48). `[code-verifiziert, Doku nicht abgeglichen]`: Doku-Seiten lieferten nur Titel, alle Aussagen am Code geprüft. Beim Autorenlauf zusätzlich bestätigt: `BreadcrumbNavigationMergeStrategy`, `Installer`/`AclInstallerPluginInterface`, Vorbildmodul `vendor/spryker/api-key-gui`. Die Beispiele sind aus Vendor-Mustern abgeleitet und nicht ausgeführt `[Annahme: lauffähig]`. Konsolenbefehle im Container ausgeführt `[live verifiziert (202610.0)]`; `npm run zed`, `zed:production` und `frontend:zed:build` ausgeführt `[live verifiziert (202610.0)]` (`zed:production` braucht im lokalen Docker `NODE_OPTIONS=--max-old-space-size=2048`, sonst OOM-Kill mit Exit 137). Storefront-Rechte (Company-Rollen) → [20](20-b2b-permissions.md); Login/MFA/CSRF → [21](21-security-session.md).
+> Status: release 202610.0 (kernel 3.87.1, Symfony 6.4.48). `[code-verified, docs not cross-checked]`: docs pages only returned titles, all statements checked against the code. Additionally confirmed during the authoring run: `BreadcrumbNavigationMergeStrategy`, `Installer`/`AclInstallerPluginInterface`, reference module `vendor/spryker/api-key-gui`. The examples are derived from vendor patterns and were not executed `[Assumption: runnable]`. Console commands executed in the container `[live verified (202610.0)]`; `npm run zed`, `zed:production` and `frontend:zed:build` executed `[live verified (202610.0)]` (`zed:production` needs `NODE_OPTIONS=--max-old-space-size=2048` in local Docker, otherwise OOM kill with exit 137). Storefront permissions (company roles) → [20](20-b2b-permissions.md); login/MFA/CSRF → [21](21-security-session.md).
 
-## Zweck
+## Purpose
 
-Back-Office-Seiten (Zed `Communication` + `Presentation`) entwickeln: Controller, `AbstractTable`, Symfony-Formulare mit DataProvider, Menüeintrag, Übersetzungen, ACL. Modulgerüst → [02](02-projektmodul.md); Plugin-Erweiterung bestehender GUIs → [03](03-core-erweitern.md). Vollständige Vorlage: [../templates/back-office-page/](../templates/back-office-page/README.md).
+Develop Back Office pages (Zed `Communication` + `Presentation`): controllers, `AbstractTable`, Symfony forms with DataProvider, menu entry, translations, ACL. Module scaffold → [02](02-project-module.md); plugin extension of existing GUIs → [03](03-extending-the-core.md). Complete template: [../templates/back-office-page/](../templates/back-office-page/README.md).
 
-## Konzepte
+## Concepts
 
-**URL -> Code:** `/<module-kebab>/<controller-kebab>/<action-kebab>` -> `Pyz\Zed\<Module>\Communication\Controller\<Controller>Controller::<action>Action()` -> Template `Presentation/<Controller>/<action>.twig`, Namespace `@<Module>/<Controller>/<action>.twig`. Beispiel: `/tax/rate/list` -> `RateController::listAction()` -> `Presentation/Rate/list.twig`.
+**URL -> code:** `/<module-kebab>/<controller-kebab>/<action-kebab>` -> `Pyz\Zed\<Module>\Communication\Controller\<Controller>Controller::<action>Action()` -> template `Presentation/<Controller>/<action>.twig`, namespace `@<Module>/<Controller>/<action>.twig`. Example: `/tax/rate/list` -> `RateController::listAction()` -> `Presentation/Rate/list.twig`.
 
-**Controller** erbt `Spryker\Zed\Kernel\Communication\Controller\AbstractController`; `getFactory()`/`getFacade()` per `@method`-Docblock typisiert. Rückgabe: `array` (Twig-Variablen), `viewResponse([...])`, `redirectResponse($url, 302)`, `jsonResponse($data)`. Helfer: `castId()`, `addSuccessMessage('Text %d', ['%d' => $id])`, `addInfoMessage()`, `addErrorMessage()`.
+**Controller** extends `Spryker\Zed\Kernel\Communication\Controller\AbstractController`; `getFactory()`/`getFacade()` typed via `@method` docblock. Return: `array` (Twig variables), `viewResponse([...])`, `redirectResponse($url, 302)`, `jsonResponse($data)`. Helpers: `castId()`, `addSuccessMessage('Text %d', ['%d' => $id])`, `addInfoMessage()`, `addErrorMessage()`.
 
-**Templates:** Pfadauflösung Projekt vor Core (`Spryker\Zed\Twig\TwigConfig::getTemplatePaths()`); ein gleichnamiges Template in `src/Pyz/Zed/<Modul>/Presentation/…` überschreibt Core (Replacement, → [03](03-core-erweitern.md)). Layout `{% extends '@Gui/Layout/layout.twig' %}`, Blöcke `head_title`, `section_title`, `action` (Buttons im Seitenkopf), `content`, `footer_js`, `head_css`. Partials: `{% embed '@Gui/Partials/widget.twig' with { widget_title: '…' | trans } %}{% block widget_content %}…{% endblock %}{% endembed %}`. Twig-Helfer: `createActionButton(url, title)`, `backActionButton(url, title)`, `removeActionButton(url, title)`, `url('/modul/controller/action', {…})`, `assetsPath('…')`. Das 202610.0-Layout ist Bootstrap 5 (neu); ältere Doku/`ibox`-Markup teils veraltet (Partials existieren noch). Block "Reset password" im Layout ist `{% deprecated %}` (wird Plugin im nächsten Major).
+**Templates:** path resolution project before core (`Spryker\Zed\Twig\TwigConfig::getTemplatePaths()`); a template with the same name in `src/Pyz/Zed/<Module>/Presentation/…` overrides core (replacement, → [03](03-extending-the-core.md)). Layout `{% extends '@Gui/Layout/layout.twig' %}`, blocks `head_title`, `section_title`, `action` (buttons in the page header), `content`, `footer_js`, `head_css`. Partials: `{% embed '@Gui/Partials/widget.twig' with { widget_title: '…' | trans } %}{% block widget_content %}…{% endblock %}{% endembed %}`. Twig helpers: `createActionButton(url, title)`, `backActionButton(url, title)`, `removeActionButton(url, title)`, `url('/module/controller/action', {…})`, `assetsPath('…')`. The 202610.0 layout is Bootstrap 5 (new); older docs/`ibox` markup partly outdated (partials still exist). The "Reset password" block in the layout is `{% deprecated %}` (becomes a plugin in the next major).
 
-**Tabellen** (`Spryker\Zed\Gui\Communication\Table\AbstractTable`): abstrakt `configure(TableConfiguration $config)` (Header, `setSearchable`, `setSortable`, `setRawColumns`/`addRawColumn`, `setUrl`) und `prepareData(TableConfiguration $config)` (Zeilen-Array, typischerweise `$this->runQuery($query, $config, true)`). Default-Ajax-URL ist `table` -> Controller braucht `tableAction`; abweichend mit `$config->setUrl(…)` (Tax: `listTableAction`). Render: `return ['table' => $table->render()]`, im Twig `{{ table | raw }}`; Ajax: `jsonResponse($table->fetchData())`. Button-Helfer: `generateCreateButton`, `generateEditButton`, `generateViewButton`, `generateRemoveButton($url, $title, $options, $formClassName = DeleteForm::class)`, `generateButtonGroup`. Aktionsspalte muss Raw-Spalte sein, alle anderen werden escaped. Neu in 202610.0: adaptiver "Large-Table-Mode" und CSV-Download (Schwellwert `GuiConfig::getLargeTableRowCountThreshold()`, Code-verifiziert, vom Frontend-Reviewer bestätigt). Erweiterung bestehender Tabellen über Expander-Plugins (z. B. `UserTableConfigExpanderPluginInterface`).
+**Tables** (`Spryker\Zed\Gui\Communication\Table\AbstractTable`): abstract `configure(TableConfiguration $config)` (header, `setSearchable`, `setSortable`, `setRawColumns`/`addRawColumn`, `setUrl`) and `prepareData(TableConfiguration $config)` (row array, typically `$this->runQuery($query, $config, true)`). Default Ajax URL is `table` -> controller needs `tableAction`; otherwise use `$config->setUrl(…)` (Tax: `listTableAction`). Render: `return ['table' => $table->render()]`, in Twig `{{ table | raw }}`; Ajax: `jsonResponse($table->fetchData())`. Button helpers: `generateCreateButton`, `generateEditButton`, `generateViewButton`, `generateRemoveButton($url, $title, $options, $formClassName = DeleteForm::class)`, `generateButtonGroup`. The action column must be a raw column, all others are escaped. New in 202610.0: adaptive "large table mode" and CSV download (threshold `GuiConfig::getLargeTableRowCountThreshold()`, code-verified, confirmed by the frontend reviewer). Existing tables are extended via expander plugins (e.g. `UserTableConfigExpanderPluginInterface`).
 
-**Löschen** nur per POST mit CSRF-Bestätigungsformular (Tax: `DeleteRateController::indexAction()` + `confirmAction()`); der alte `deleteAction()` im `RateController` ist `@deprecated`.
+**Deleting** only via POST with CSRF confirmation form (Tax: `DeleteRateController::indexAction()` + `confirmAction()`); the old `deleteAction()` in `RateController` is `@deprecated`.
 
-**Formulare:** Form erbt `Spryker\Zed\Kernel\Communication\Form\AbstractType`, Daten als Transfer (`data_class`). DataProvider = einfache Klasse mit `getData(?int $id)` und `getOptions(): array` (Vorbild `TaxRateFormDataProvider`). Die Factory erzeugt: `$this->getFormFactory()->create(Form::class, $transfer, $options)`. Controller: `handleRequest`, `isSubmitted() && isValid()`, Facade-Aufruf, `createView()`. Twig: `form_start`, `form_row`/`form_widget`, Submit `<input type="submit" class="btn btn-primary safe-submit" …>`, `form_end`. Aktive Form-Plugins (`Pyz\Zed\Form\FormDependencyProvider`): `ValidatorFormPlugin`, `HttpFoundationFormPlugin`, `CsrfFormPlugin`, `NoValidateFormTypeExtensionFormPlugin`, `SanitizeXssTypeExtensionFormPlugin`, `MultiFactorAuthExtensionFormPlugin` -> CSRF aktiv, XSS-Sanitierung per Typ-Extension. Erweiterung fremder Forms: Expander-Plugins (`UserFormExpanderPluginInterface`).
+**Forms:** the form extends `Spryker\Zed\Kernel\Communication\Form\AbstractType`, data as Transfer (`data_class`). DataProvider = simple class with `getData(?int $id)` and `getOptions(): array` (reference `TaxRateFormDataProvider`). The Factory creates: `$this->getFormFactory()->create(Form::class, $transfer, $options)`. Controller: `handleRequest`, `isSubmitted() && isValid()`, Facade call, `createView()`. Twig: `form_start`, `form_row`/`form_widget`, submit `<input type="submit" class="btn btn-primary safe-submit" …>`, `form_end`. Active form plugins (`Pyz\Zed\Form\FormDependencyProvider`): `ValidatorFormPlugin`, `HttpFoundationFormPlugin`, `CsrfFormPlugin`, `NoValidateFormTypeExtensionFormPlugin`, `SanitizeXssTypeExtensionFormPlugin`, `MultiFactorAuthExtensionFormPlugin` -> CSRF active, XSS sanitization via type extension. Extending other modules' forms: expander plugins (`UserFormExpanderPluginInterface`).
 
-**Navigation:** `navigation.xml` je Modul unter `…/Zed/<Modul>/Communication/` (`ZedNavigationConfig::getNavigationSchemaPathPattern()`), `navigation-secondary.xml` für die zweite Navigation. Knoten: `label`, `title`, `bundle` (Modul kebab-case), `controller`, `action`, `uri` (`#` = Gruppe), `icon` (`fa-…`), `visible` (`0` = nur Breadcrumb/Berechtigung), verschachtelt in `<pages>`; max. 5 Ebenen. **Merge-Strategie in Pyz = `BREADCRUMB_MERGE_STRATEGY`** (`Pyz\Zed\ZedNavigation\ZedNavigationConfig`). Code-Befund (`BreadcrumbNavigationMergeStrategy::mergeNavigation()`): Ergebnis ist die Struktur von `config/Zed/navigation.xml`; aus den Modul-Dateien werden nur die `pages` von Knoten übernommen, die im Root unter **gleichem Schlüsselnamen und gleichem `bundle`** stehen. Folge: Menüpunkt (Ebene 1 und 2) muss im Root eingetragen sein; Unterseiten (create/edit, `visible 0`) kommen aus dem Modul-XML. Dies löst die Annahme der Recherche auf (nicht live ausgeführt). Navigationsfilter: `AclNavigationItemCollectionFilterPlugin` (Menü folgt der ACL), `BackofficeNavigationItemCollectionFilterPlugin`. Deprecated: `ZedNavigationConfig::getNavigationSchemaFileNamePattern()` -> `getNavigationSchemaFileNamePatterns()`; `getRootNavigationSchema()` -> `getRootNavigationSchemaPaths()`; `isAddingGlobalVariables()` nur BC (Twig `navigation()`/`breadcrumb()`).
+**Navigation:** `navigation.xml` per module under `…/Zed/<Module>/Communication/` (`ZedNavigationConfig::getNavigationSchemaPathPattern()`), `navigation-secondary.xml` for the secondary navigation. Nodes: `label`, `title`, `bundle` (module kebab-case), `controller`, `action`, `uri` (`#` = group), `icon` (`fa-…`), `visible` (`0` = breadcrumb/permission only), nested in `<pages>`; max. 5 levels. **Merge strategy in Pyz = `BREADCRUMB_MERGE_STRATEGY`** (`Pyz\Zed\ZedNavigation\ZedNavigationConfig`). Code finding (`BreadcrumbNavigationMergeStrategy::mergeNavigation()`): the result is the structure of `config/Zed/navigation.xml`; from the module files only the `pages` of nodes are taken over that exist in the root under the **same key name and same `bundle`**. Consequence: the menu item (levels 1 and 2) must be registered in the root; subpages (create/edit, `visible 0`) come from the module XML. `[code-verified]` (not executed live). Navigation filters: `AclNavigationItemCollectionFilterPlugin` (menu follows the ACL), `BackofficeNavigationItemCollectionFilterPlugin`. Deprecated: `ZedNavigationConfig::getNavigationSchemaFileNamePattern()` -> `getNavigationSchemaFileNamePatterns()`; `getRootNavigationSchema()` -> `getRootNavigationSchemaPaths()`; `isAddingGlobalVariables()` BC only (Twig `navigation()`/`breadcrumb()`).
 
-**Übersetzungen (Zed)** sind CSV-Dateien (Komma, Zeile `"Quelltext",Übersetzung`), keine Glossar-DB. Core: `vendor/spryker/<modul>/data/translation/Zed/<locale>.csv`. **Projekt: `src/Pyz/Zed/Translator/data/<Name>/<locale>.csv`** (Pattern `src/<Namespace>/Zed/Translator/data/*/xx_XX.csv`, Ordnername frei); das Top-Level-`data/translation/` wird nicht mehr gelesen (nur README). Merge `core` dann `project` (Projekt überschreibt `[Annahme: Loader nicht separat geprüft]`). Fallback `TranslatorConstants::TRANSLATION_ZED_FALLBACK_LOCALES` (`['de_DE' => ['en_US']]`). Cache `src/Generated/Zed/Translator/…`; nach jeder CSV-Änderung `translator:generate-cache`. Nutzung: `{{ 'Text' | trans }}`, PHP-Messages und Form-Labels automatisch. Quelltext = Schlüssel (englischer Satz), Locales `en_US.csv`, `de_DE.csv`. Yves-Texte sind ein separater Mechanismus → [19](19-multi-store-i18n.md).
+**Translations (Zed)** are CSV files (comma, line `"source text",translation`), not a glossary DB. Core: `vendor/spryker/<module>/data/translation/Zed/<locale>.csv`. **Project: `src/Pyz/Zed/Translator/data/<Name>/<locale>.csv`** (pattern `src/<Namespace>/Zed/Translator/data/*/xx_XX.csv`, folder name free); the top-level `data/translation/` is no longer read (README only). Merge `core` then `project` (project overrides `[Assumption: loader not checked separately]`). Fallback `TranslatorConstants::TRANSLATION_ZED_FALLBACK_LOCALES` (`['de_DE' => ['en_US']]`). Cache `src/Generated/Zed/Translator/…`; run `translator:generate-cache` after every CSV change. Usage: `{{ 'Text' | trans }}`, PHP messages and form labels automatically. Source text = key (English sentence), locales `en_US.csv`, `de_DE.csv`. Yves texts are a separate mechanism → [19](19-multi-store-i18n.md).
 
-**ACL:** User <-> Group (n:m) <-> Role <-> Rule (`bundle`, `controller`, `action`, `type` `allow|deny`). Prüfung durch `AccessControlEventDispatcherPlugin` auf `KernelEvents::REQUEST` (registriert in `Pyz\Zed\EventDispatcher\EventDispatcherDependencyProvider`); ohne Berechtigung Redirect `/acl/index/denied`. Auswertung (`RuleValidator`): **Deny schlägt Allow**, Wildcard `*` (`AclConstants::VALIDATOR_WILDCARD`) auf Bundle/Controller/Action; kein Allow = verboten. Rule-Keys = URL-Segmente = `navigation.xml`-Werte (kebab-case). Globale Regeln in `config/Shared/config_default.php` (`ACL_DEFAULT_CREDENTIALS`, `ACL_DEFAULT_RULES`, `ACL_USER_RULE_WHITELIST`). Der Installer ist idempotent und **nur additiv** (existierende Gruppen übersprungen, Rollen nach Name gesucht, Regeln mit `existsRoleRule()` geprüft); er läuft über `AclInstallerPlugin` (in `Pyz\Zed\Installer\InstallerDependencyProvider`), d. h. bei `setup:init-db`. Bestehende Regeln ändern: Back Office (Menü **Users** -> "User Roles"/"User Groups", `config/Zed/navigation.xml`) oder eigene Migration. Eigene Rollen/Gruppen: `AclInstallerPluginInterface` (`getRoles()`, `getGroups()`), registriert in `Pyz\Zed\Acl\AclDependencyProvider::getAclInstallerPlugins()` (existiert in Pyz nicht, anlegen). Weitere Extension Points: `AclRolesExpanderPluginInterface`, `AclRolePostSavePluginInterface`, `AclAccessCheckerStrategyPluginInterface`. Neue Seiten sind für Nicht-Root-User unsichtbar/gesperrt, bis die Regel vergeben ist.
+**ACL:** User <-> Group (n:m) <-> Role <-> Rule (`bundle`, `controller`, `action`, `type` `allow|deny`). Checked by `AccessControlEventDispatcherPlugin` on `KernelEvents::REQUEST` (registered in `Pyz\Zed\EventDispatcher\EventDispatcherDependencyProvider`); without permission redirect to `/acl/index/denied`. Evaluation (`RuleValidator`): **deny beats allow**, wildcard `*` (`AclConstants::VALIDATOR_WILDCARD`) on bundle/controller/action; no allow = forbidden. Rule keys = URL segments = `navigation.xml` values (kebab-case). Global rules in `config/Shared/config_default.php` (`ACL_DEFAULT_CREDENTIALS`, `ACL_DEFAULT_RULES`, `ACL_USER_RULE_WHITELIST`). The installer is idempotent and **only additive** (existing groups skipped, roles looked up by name, rules checked with `existsRoleRule()`); it runs via `AclInstallerPlugin` (in `Pyz\Zed\Installer\InstallerDependencyProvider`), i.e. during `setup:init-db`. Changing existing rules: Back Office (menu **Users** -> "User Roles"/"User Groups", `config/Zed/navigation.xml`) or your own migration. Custom roles/groups: `AclInstallerPluginInterface` (`getRoles()`, `getGroups()`), registered in `Pyz\Zed\Acl\AclDependencyProvider::getAclInstallerPlugins()` (does not exist in Pyz, create it). Further extension points: `AclRolesExpanderPluginInterface`, `AclRolePostSavePluginInterface`, `AclAccessCheckerStrategyPluginInterface`. New pages are invisible/blocked for non-root users until the rule is granted.
 
-**Abgrenzung AclEntity:** Dieses ACL regelt den Zugriff auf URLs (Bundle/Controller/Action) im Back Office. Die datensatzbezogene Zugriffskontrolle auf Propel-Entities ("AclEntity", Segmente/Scopes pro Entity) ist ein eigenes Feature und **im Release nicht installiert**: `spryker/acl-entity` fehlt in `vendor/`; vorhanden ist nur `spryker/acl-entity-extension` (die Interfaces `AclEntityMetadataConfigExpanderPluginInterface`, `AclEntityDisablerPluginInterface`), und `src/Pyz` nutzt AclEntity nicht. Pläne mit AclEntity (z. B. Datensichtbarkeit je Merchant/Segment) erfordern erst die Installation des Moduls samt Feature-Integration `[Annahme: Details nicht geprüft]`; Storefront-Rechte (Company-Rollen) sind wieder ein anderer Mechanismus ([20](20-b2b-permissions.md)).
+**Distinction from AclEntity:** this ACL controls access to URLs (bundle/controller/action) in the Back Office. Record-level access control on Propel entities ("AclEntity", segments/scopes per entity) is a separate feature and **not installed in the release**: `spryker/acl-entity` is missing from `vendor/`; only `spryker/acl-entity-extension` is present (the interfaces `AclEntityMetadataConfigExpanderPluginInterface`, `AclEntityDisablerPluginInterface`), and `src/Pyz` does not use AclEntity. Plans involving AclEntity (e.g. data visibility per merchant/segment) first require installing the module including feature integration `[Assumption: details not checked]`; Storefront permissions (company roles) are yet another mechanism ([20](20-b2b-permissions.md)).
 
-**Assets:** `npm run zed`, `zed:watch`, `zed:production`, `zed:lint`, `zed:stylelint` bzw. `frontend:zed:build` (`-e production`). Builder `vendor/spryker/gui/src/Spryker/Zed/Gui/FrontendBuilder/` findet `**/Zed/**/*.entry.js|ts` in Core, Features, Eco, SDK und `./src/Pyz/Zed`; Ausgabe `public/Backoffice/assets`. Modul-Assets `assets/Zed/js/<name>.entry.js` (+ `modules/`, `scss/`); Pfad im Pyz-Modul `src/Pyz/Zed/<Modul>/assets/Zed/…` nicht an einem Pyz-Modul verifiziert `[Annahme]`. Builder ist TypeScript (`.mts`); Doku zum Webpack-Build ist veraltet. Allgemein → [15](15-yves-frontend-atomic.md).
+**Assets:** `npm run zed`, `zed:watch`, `zed:production`, `zed:lint`, `zed:stylelint` or `frontend:zed:build` (`-e production`). Builder `vendor/spryker/gui/src/Spryker/Zed/Gui/FrontendBuilder/` finds `**/Zed/**/*.entry.js|ts` in core, features, Eco, SDK and `./src/Pyz/Zed`; output `public/Backoffice/assets`. Module assets `assets/Zed/js/<name>.entry.js` (+ `modules/`, `scss/`); the path in a Pyz module `src/Pyz/Zed/<Module>/assets/Zed/…` was not verified on a Pyz module `[Assumption]`. The builder is TypeScript (`.mts`); the docs on the Webpack build are outdated. General → [15](15-yves-frontend-atomic.md).
 
-## Anleitung
+## Instructions
 
-1. **Modul** `Pyz\Zed\<Name>Gui` mit `Communication/` (Controller, Factory, Table, Form, `navigation.xml`) und `Presentation/` anlegen ([02](02-projektmodul.md)); Daten über Facade des Business-Moduls, Tabellen-Query per DependencyProvider als `PROPEL_QUERY_*` bereitstellen (Muster `ApiKeyGuiDependencyProvider`).
-2. **Controller:** `listAction` + `tableAction` (Tabelle), `createAction` (Form). Löschen mit Bestätigungsformular.
-3. **Twig:** `@Gui/Layout/layout.twig`, `widget.twig`, `{{ table | raw }}`; Texte mit `| trans`.
-4. **Navigation:** Knoten in `config/Zed/navigation.xml` (z. B. unter `<catalog><pages>`) und `pages` im Modul-`navigation.xml` (gleicher Schlüssel + `bundle`).
-5. **Übersetzung:** `src/Pyz/Zed/Translator/data/<Name>Gui/{de_DE,en_US}.csv`, Menü-Labels in dieselbe oder `ZedNavigation/*.csv`.
-6. **ACL:** Rolle/Gruppe per Installer-Plugin oder im Back Office vergeben; Wildcard auf Controller einplanen (Ajax-Action `table` ist eigene Action).
-7. **Aktivieren** (alle Befehle `[live verifiziert (202610.0)]`):
+1. **Module:** create `Pyz\Zed\<Name>Gui` with `Communication/` (controller, Factory, table, form, `navigation.xml`) and `Presentation/` ([02](02-project-module.md)); data via the Facade of the business module, provide the table query via DependencyProvider as `PROPEL_QUERY_*` (pattern `ApiKeyGuiDependencyProvider`).
+2. **Controller:** `listAction` + `tableAction` (table), `createAction` (form). Delete with confirmation form.
+3. **Twig:** `@Gui/Layout/layout.twig`, `widget.twig`, `{{ table | raw }}`; texts with `| trans`.
+4. **Navigation:** node in `config/Zed/navigation.xml` (e.g. under `<catalog><pages>`) and `pages` in the module `navigation.xml` (same key + `bundle`).
+5. **Translation:** `src/Pyz/Zed/Translator/data/<Name>Gui/{de_DE,en_US}.csv`, menu labels in the same file or `ZedNavigation/*.csv`.
+6. **ACL:** grant role/group via installer plugin or in the Back Office; plan a wildcard on the controller (Ajax action `table` is a separate action).
+7. **Activate** (all commands `[live verified (202610.0)]`):
 
 ```bash
-docker/sdk cli console transfer:generate        # nur bei neuen Transfers
-docker/sdk cli console navigation:build-cache   # Menü (auch: navigation:cache:remove)
+docker/sdk cli console transfer:generate        # only for new transfers
+docker/sdk cli console navigation:build-cache   # menu (also: navigation:cache:remove)
 docker/sdk cli console translator:generate-cache
-docker/sdk cli console setup:init-db            # führt u. a. ACL-Installer-Plugins aus (idempotent)
-docker/sdk cli 'npm run zed'                    # nur bei eigenen Assets
+docker/sdk cli console setup:init-db            # runs ACL installer plugins among others (idempotent)
+docker/sdk cli 'npm run zed'                    # only with your own assets
 ```
 
-## Beispiele
+## Examples
 
-Komplett lauffähig gedachte Dateien (ProductBadgeGui: Controller, Table, Form, DataProvider, Factory, DependencyProvider, Twig, `navigation.xml`, ACL-Plugin, CSV): [../templates/back-office-page/](../templates/back-office-page/README.md).
+Files intended to be fully runnable (ProductBadgeGui: controller, table, form, DataProvider, Factory, DependencyProvider, Twig, `navigation.xml`, ACL plugin, CSV): [../templates/back-office-page/](../templates/back-office-page/README.md).
 
-**Echt (Pyz):** Navigation-Filter `src/Pyz/Zed/ZedNavigation/ZedNavigationDependencyProvider.php`
+**Real (Pyz):** navigation filter `src/Pyz/Zed/ZedNavigation/ZedNavigationDependencyProvider.php`
 
 ```php
 protected function getNavigationItemCollectionFilterPlugins(): array
@@ -64,7 +64,7 @@ protected function getNavigationItemCollectionFilterPlugins(): array
 }
 ```
 
-**Echt (Pyz):** Installer-User `src/Pyz/Zed/Acl/AclConfig.php`
+**Real (Pyz):** installer users `src/Pyz/Zed/Acl/AclConfig.php`
 
 ```php
 public function getInstallerUsers(): array
@@ -76,40 +76,40 @@ public function getInstallerUsers(): array
 }
 ```
 
-**Echt (Core, Referenzstruktur):** `vendor/spryker/api-key-gui` (modern, Controller `List`/`Create`/`Edit`/`Delete`, `ApiKeyTable` mit `setRawColumns`, `setTableIdentifier`, `setDefaultSortField`, DataProvider, Presentation je Controller) und `vendor/spryker/tax` (`RateTable`, `TaxRateForm`, `TaxRateFormDataProvider`, Delete-Bestätigung).
+**Real (core, reference structure):** `vendor/spryker/api-key-gui` (modern, controllers `List`/`Create`/`Edit`/`Delete`, `ApiKeyTable` with `setRawColumns`, `setTableIdentifier`, `setDefaultSortField`, DataProvider, Presentation per controller) and `vendor/spryker/tax` (`RateTable`, `TaxRateForm`, `TaxRateFormDataProvider`, delete confirmation).
 
-**Echt (Core):** Aktionsspalte in `RateTable::createDeleteButton()`: `$this->generateRemoveButton(Url::generate('/tax/delete-rate', ['id-tax-rate' => $id]), 'Delete')`.
+**Real (core):** action column in `RateTable::createDeleteButton()`: `$this->generateRemoveButton(Url::generate('/tax/delete-rate', ['id-tax-rate' => $id]), 'Delete')`.
 
-**Echt (Pyz-Override, Form+DataProvider):** `src/Pyz/Zed/CustomerAccessGui/Presentation/Index/index.twig` nutzt `{% extends '@Gui/Layout/layout.twig' %}`, `{% embed '@Gui/Partials/widget.twig' … %}`, `form_start(form)` … `<input type="submit" class="btn btn-primary safe-submit" value="{{ 'Save' | trans }}" />`.
+**Real (Pyz override, form+DataProvider):** `src/Pyz/Zed/CustomerAccessGui/Presentation/Index/index.twig` uses `{% extends '@Gui/Layout/layout.twig' %}`, `{% embed '@Gui/Partials/widget.twig' … %}`, `form_start(form)` … `<input type="submit" class="btn btn-primary safe-submit" value="{{ 'Save' | trans }}" />`.
 
-## Fallstricke
+## Pitfalls
 
-1. **Menüpunkt fehlt:** Cache nicht neu gebaut, Knoten nicht in `config/Zed/navigation.xml` (Pyz-Merge-Strategie), `bundle`/`controller`/`action` != URL-Segmente (kebab-case), oder ACL-Regel fehlt (Filter blendet aus).
-2. **Redirect `/acl/index/denied`:** Regel fehlt; Deny schlägt Allow; Ajax-Action `table` braucht eigene Erlaubnis (Wildcard auf Controller).
-3. **Tabelle zeigt HTML als Text:** Aktionsspalte nicht Raw. Umgekehrt keine Benutzereingaben in Raw-Spalten ohne Escape (XSS).
-4. **Tabelle lädt nicht:** `tableAction` fehlt oder `setUrl()` zeigt ins Leere; Header-Keys müssen den Keys aus `prepareData` entsprechen.
-5. **Übersetzung wirkt nicht:** `translator:generate-cache` vergessen, falscher Delimiter (muss `,` sein), Datei nicht `xx_XX.csv`, Datei im alten `data/translation/`.
-6. **Löschen per GET:** nie; Bestätigungsseite + POST mit CSRF-Form.
-7. **Template nicht gefunden:** Controller-Name != Presentation-Ordner (`RateController` -> `Presentation/Rate/`), `listAction` -> `list.twig`.
-8. **ACL-Installer ändert nichts an Bestandsdaten:** nur additiv; Änderungen laufender Systeme über Back Office/Migration.
-9. Default-Passwort `change123` in `Pyz\Zed\User\UserConfig` nur Dev.
-10. Core-`navigation.xml` kopieren, Core-Controller/-Templates komplett kopieren, wo ein Plugin-Punkt existiert -> Upgrade-Risiko ([28](28-upgradability.md)).
-11. Controller dünn halten: Logik in Facade; Query direkt in der Tabelle ist gängiger GUI-Kompromiss, Daten sonst über Repository/Facade ([01](01-architektur.md)).
+1. **Menu item missing:** cache not rebuilt, node not in `config/Zed/navigation.xml` (Pyz merge strategy), `bundle`/`controller`/`action` != URL segments (kebab-case), or ACL rule missing (filter hides it).
+2. **Redirect `/acl/index/denied`:** rule missing; deny beats allow; Ajax action `table` needs its own permission (wildcard on controller).
+3. **Table shows HTML as text:** action column not raw. Conversely, no user input in raw columns without escaping (XSS).
+4. **Table does not load:** `tableAction` missing or `setUrl()` points nowhere; header keys must match the keys from `prepareData`.
+5. **Translation has no effect:** `translator:generate-cache` forgotten, wrong delimiter (must be `,`), file not named `xx_XX.csv`, file in the old `data/translation/`.
+6. **Deleting via GET:** never; confirmation page + POST with CSRF form.
+7. **Template not found:** controller name != Presentation folder (`RateController` -> `Presentation/Rate/`), `listAction` -> `list.twig`.
+8. **ACL installer does not change existing data:** only additive; changes on running systems via Back Office/migration.
+9. Default password `change123` in `Pyz\Zed\User\UserConfig` for dev only.
+10. Copying core `navigation.xml`, copying core controllers/templates entirely where a plugin point exists -> upgrade risk ([28](28-upgradability.md)).
+11. Keep controllers thin: logic in the Facade; a query directly in the table is a common GUI compromise, otherwise data via Repository/Facade ([01](01-architecture.md)).
 
-## Checkliste
+## Checklist
 
-- [ ] Controller dünn, `@method`-Docblocks, `declare(strict_types = 1)`
-- [ ] Tabelle: Raw-Spalte, `tableAction`, Suche/Sortierung gesetzt
-- [ ] Formular über Factory + DataProvider, CSRF aktiv (Standard), Löschen per POST
-- [ ] Knoten in `config/Zed/navigation.xml` und Modul-`navigation.xml`, `navigation:build-cache`
-- [ ] CSV in `src/Pyz/Zed/Translator/data/<Name>/` für `de_DE` und `en_US`, `translator:generate-cache`
-- [ ] ACL-Rolle/Regel (`bundle`/`*`/`*`) vergeben (URL-ACL; AclEntity ist nicht installiert), Menü mit Nicht-Root-User geprüft
-- [ ] Alle Texte mit `| trans`; keine Edits in `vendor/`
+- [ ] Controller thin, `@method` docblocks, `declare(strict_types = 1)`
+- [ ] Table: raw column, `tableAction`, search/sorting set
+- [ ] Form via Factory + DataProvider, CSRF active (default), delete via POST
+- [ ] Node in `config/Zed/navigation.xml` and module `navigation.xml`, `navigation:build-cache`
+- [ ] CSV in `src/Pyz/Zed/Translator/data/<Name>/` for `de_DE` and `en_US`, `translator:generate-cache`
+- [ ] ACL role/rule (`bundle`/`*`/`*`) granted (URL ACL; AclEntity is not installed), menu checked with a non-root user
+- [ ] All texts with `| trans`; no edits in `vendor/`
 
-## Quellen
+## Sources
 
-Doku (Basis `https://docs.spryker.com/docs/`, nur Startpunkte): `dg/dev/backend-development/zed/zed.html`, `…/zed/communication-layer/communication-layer.html`, `…/zed-ui-tables/create-and-configure-zed-tables.html`, `…/zed-ui-tables/adding-buttons-to-zed-tables.html`, `…/forms/create-forms.html`, `…/zed/add-navigation-in-the-back-office.html` (Stand 2021), `pbc/all/back-office/latest/base-shop/back-office-translations-overview.html`, `pbc/all/user-management/latest/base-shop/user-and-rights-overview.html`.
+Docs (base `https://docs.spryker.com/docs/`, starting points only): `dg/dev/backend-development/zed/zed.html`, `…/zed/communication-layer/communication-layer.html`, `…/zed-ui-tables/create-and-configure-zed-tables.html`, `…/zed-ui-tables/adding-buttons-to-zed-tables.html`, `…/forms/create-forms.html`, `…/zed/add-navigation-in-the-back-office.html` (as of 2021), `pbc/all/back-office/latest/base-shop/back-office-translations-overview.html`, `pbc/all/user-management/latest/base-shop/user-and-rights-overview.html`.
 
 Code: `vendor/spryker/gui/src/Spryker/Zed/Gui/Communication/Table/AbstractTable.php`, `…/Presentation/{Layout,Partials}/*`, `vendor/spryker/tax/src/Spryker/Zed/Tax/Communication/**`, `vendor/spryker/api-key-gui/src/Spryker/Zed/ApiKeyGui/**`, `vendor/spryker/zed-navigation/src/Spryker/Zed/ZedNavigation/{ZedNavigationConfig.php,Business/Strategy/BreadcrumbNavigationMergeStrategy.php}`, `vendor/spryker/translator/src/Spryker/Zed/Translator/TranslatorConfig.php`, `vendor/spryker/acl/src/Spryker/Zed/Acl/{AclDependencyProvider.php,Business/Model/{Installer,RuleValidator}.php}`, `vendor/spryker/acl-extension/…/AclInstallerPluginInterface.php`, `vendor/spryker/kernel/src/Spryker/Zed/Kernel/Communication/Controller/AbstractController.php`, `config/Zed/navigation.xml`, `config/install/docker.yml`, `src/Pyz/Zed/{Acl,ZedNavigation,Form,Gui,CustomerAccessGui,Translator}/…`.
 
-Nachbarn: [02 Projektmodul](02-projektmodul.md), [03 Core erweitern](03-core-erweitern.md), [05 Propel](05-propel-persistenz.md), [20 B2B-Rechte](20-b2b-permissions.md), [21 Security](21-security-session.md), [19 i18n](19-multi-store-i18n.md).
+Neighbors: [02 Project module](02-project-module.md), [03 Extending the core](03-extending-the-core.md), [05 Propel](05-propel-persistence.md), [20 B2B permissions](20-b2b-permissions.md), [21 Security](21-security-session.md), [19 i18n](19-multi-store-i18n.md).

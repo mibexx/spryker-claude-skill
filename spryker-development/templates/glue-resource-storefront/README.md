@@ -1,14 +1,14 @@
-# Template: glue-resource-storefront (klassischer GlueApplication-Stack)
+# Template: glue-resource-storefront (classic GlueApplication stack)
 
-## Zweck
-Öffentliche Storefront-Ressource `product-badges` im **klassischen Glue-Stack** (`glue.*`, `ResourceRoutePluginInterface`, JSON:API). Liest Badges eines Abstract-Produkts über den Client `Pyz\Client\ProductBadge\ProductBadgeClientInterface` (Storage, kein Zed-Zugriff). Der Client wird ohne Bridge direkt über den Locator im DependencyProvider geholt; die Factory typisiert den Getter auf `ProductBadgeClientInterface`.
+## Purpose
+Public Storefront resource `product-badges` in the **classic Glue stack** (`glue.*`, `ResourceRoutePluginInterface`, JSON:API). Reads the badges of an abstract product via the Client `Pyz\Client\ProductBadge\ProductBadgeClientInterface` (Storage, no Zed access). The Client is fetched without a bridge directly via the locator in the DependencyProvider; the Factory types the getter to `ProductBadgeClientInterface`.
 
-- `GET /product-badges?idProductAbstract=5` liefert die Badges (Collection, `id` = `badgeKey`).
-- `GET /product-badges/{badgeKey}?idProductAbstract=5` liefert ein Badge.
+- `GET /product-badges?idProductAbstract=5` returns the badges (collection, `id` = `badgeKey`).
+- `GET /product-badges/{badgeKey}?idProductAbstract=5` returns one badge.
 
-Warum dieser Stack: In 202610.0 leben praktisch alle Commerce-Ressourcen im klassischen Stack (`glue.*`, ca. 80 Route-Plugins). Der Decoupled-Stack (`glue-storefront.*`, `GlueStorefrontApiApplication`) hat nur `token`, `stores` und Multi-Factor-Auth-Ressourcen registriert; `spryker/api-platform` ist **nicht installiert**. Siehe [12-glue-storefront](../../references/12-glue-storefront.md).
+Why this stack: in 202610.0 practically all commerce resources live in the classic stack (`glue.*`, approx. 80 route plugins). The decoupled stack (`glue-storefront.*`, `GlueStorefrontApiApplication`) has only `token`, `stores` and multi-factor auth resources registered; `spryker/api-platform` is **not installed**. See [12-glue-storefront](../../references/12-glue-storefront.md).
 
-## Dateiliste (Zielpfad unter Projektroot)
+## File list (target path below the project root)
 ```
 src/Pyz/Shared/ProductBadgesRestApi/Transfer/product_badges_rest_api.transfer.xml
 src/Pyz/Glue/ProductBadgesRestApi/ProductBadgesRestApiConfig.php
@@ -21,15 +21,15 @@ src/Pyz/Glue/ProductBadgesRestApi/Processor/Mapper/ProductBadgeMapper(.php|Inter
 src/Pyz/Glue/ProductBadgesRestApi/Processor/RestResponseBuilder/ProductBadgeRestResponseBuilder(.php|Interface.php)
 ```
 
-## Platzhalter / Anpassung
-- `ProductBadge` / `ProductBadges` / `product-badges` durch den eigenen Namen ersetzen (Modulname, Ressourcentyp, Controller-Kebab-Name `product-badges-resource` = `ProductBadgesResourceController`).
-- Fehlercodes `4401`/`4402` in `ProductBadgesRestApiConfig` sind frei gewählt (Annahme: im Projekt ungenutzt); pro Modul eindeutig halten.
-- Transfers: `ProductBadge` ist hier wie in transfer-and-propel `strict="true"` (sonst `TransferDefinitionMismatchException` beim Kombinieren der Templates); die Properties werden beim Generieren zusammengeführt.
-- Der Client-Rückgabewert `array` wird defensiv gemappt (`ProductBadgeTransfer` oder Storage-Array, `fromArray(..., true)` akzeptiert snake_case und camelCase). Passt das Client-Template einen anderen Typ an, nur `ProductBadgeMapper` ändern.
-- Soll die Ressource geschützt sein: in `ProductBadgesResourceRoutePlugin::configure()` `addGet('get')` ohne `false` (Default ist `isProtected = true`). Für POST/PATCH zusätzlich `*.validation.yaml` anlegen (siehe Referenz).
+## Placeholders / customization
+- Replace `ProductBadge` / `ProductBadges` / `product-badges` with your own name (module name, resource type, controller kebab name `product-badges-resource` = `ProductBadgesResourceController`).
+- Error codes `4401`/`4402` in `ProductBadgesRestApiConfig` are freely chosen (assumption: unused in the project); keep them unique per module.
+- Transfers: `ProductBadge` is `strict="true"` here as in transfer-and-propel (otherwise `TransferDefinitionMismatchException` when combining the templates); the properties are merged during generation.
+- The Client return value `array` is mapped defensively (`ProductBadgeTransfer` or storage array, `fromArray(..., true)` accepts snake_case and camelCase). If the Client template adopts a different type, only change `ProductBadgeMapper`.
+- If the resource should be protected: in `ProductBadgesResourceRoutePlugin::configure()` use `addGet('get')` without `false` (default is `isProtected = true`). For POST/PATCH additionally create `*.validation.yaml` (see reference).
 
-## Registrierung
-Datei `src/Pyz/Glue/GlueApplication/GlueApplicationDependencyProvider.php`, Methode `getResourceRoutePlugins()`:
+## Registration
+File `src/Pyz/Glue/GlueApplication/GlueApplicationDependencyProvider.php`, method `getResourceRoutePlugins()`:
 ```php
 use Pyz\Glue\ProductBadgesRestApi\Plugin\GlueApplication\ProductBadgesResourceRoutePlugin;
 ...
@@ -41,32 +41,32 @@ protected function getResourceRoutePlugins(): array
     ];
 }
 ```
-Kein composer-Eintrag nötig (Namespace `Pyz\`). Das Modul braucht den Locator-Aufruf `productBadge()->client()`; dafür muss das Client-Template (`Pyz\Client\ProductBadge`) vorhanden sein.
+No composer entry needed (namespace `Pyz\`). The module needs the locator call `productBadge()->client()`; for this the Client template (`Pyz\Client\ProductBadge`) must be present.
 
-## Befehle danach
-`transfer:generate`, `dev:ide-auto-completion:generate`, `rest-api:generate:documentation` und die curl-Aufrufe gegen die Ressource liefen im Shop 202610.0 `[live verifiziert (202610.0)]`.
+## Commands afterwards
+`transfer:generate`, `dev:ide-auto-completion:generate`, `rest-api:generate:documentation` and the curl calls against the resource ran in shop 202610.0 `[live verified (202610.0)]`.
 ```bash
 docker/sdk cli vendor/bin/console transfer:generate
-docker/sdk cli vendor/bin/console dev:ide-auto-completion:generate   # nötig, damit der Locator-Aufruf productBadge() für PHPStan/IDE bekannt ist
+docker/sdk cli vendor/bin/console dev:ide-auto-completion:generate   # needed so that the locator call productBadge() is known to PHPStan/IDE
 curl -H 'Accept: application/vnd.api+json' 'http://glue.eu.spryker.local/product-badges?idProductAbstract=1'
-# Optional OpenAPI (Stack A): Zed-Konsole, nicht vendor/bin/glue
+# Optional OpenAPI (stack A): Zed console, not vendor/bin/glue
 docker/sdk console rest-api:generate:documentation
 ```
-Live-Ergebnis (Badge 1 am Abstract 4, publiziert):
+Live result (badge 1 on abstract 4, published):
 - `GET /product-badges?idProductAbstract=4` -> `200`, `{"data":[{"type":"product-badges","id":"new","attributes":{"badgeKey":"new","label":"New!"},"links":{"self":"..."}}],"links":{...}}`.
-- `GET /product-badges/new?idProductAbstract=4` -> `200`, `data` als Objekt.
-- `GET /product-badges?idProductAbstract=9999` (keine Badges) -> `200` mit `"data":[]`.
-- `GET /product-badges` ohne Parameter -> `400`, Code `4401`, `Query parameter "idProductAbstract" is missing or invalid.`
-- Die Ressource ist anonym erreichbar (`addGet('get', false)`).
-- Codeception-Cest (`seeResponseMatchesOpenApiSchema`) braucht vorher `rest-api:generate:documentation`, sonst `No valid path is found in the schema` (siehe Template `codeception-test`).
-- **Rückbau:** Wird die Ressource wieder entfernt, danach `docker/sdk cli console rest-api:generate:documentation` erneut ausführen und `rest-api:build-request-validation-cache` neu bauen. Die generierte `src/Generated/Glue/Specification/spryker_rest_api.schema.yml` ist per `.gitignore` ausgeschlossen (nicht in `git status` sichtbar) und enthält sonst weiter `product-badges`; Kontrolle per `grep -ci badge …` = 0 `[live verifiziert (202610.0)]`.
-- `cache:empty-all` löscht den Glue-Controller-Cache; danach `docker/sdk cli vendor/bin/glue glue-api:controller:cache:warm-up` (ohne Argument, siehe Referenz 12) für die Decoupled-Stacks; der klassische Stack braucht ihn nicht.
-Der klassische Stack (`glue.*`) liest keinen Controller-Cache (`getControllerConfigurationCacheCollectorPlugins()` kennt nur Storefront und Backend); ein Controller-Cache-Warm-up ist hier nicht nötig und `router:debug` gibt es für diesen Stack nicht (`router:debug` akzeptiert nur `storefront`/`backend`). Eine unbekannte Route liefert live `{"errors":[{"status":404,"detail":"Not Found"}]}`, nicht die Codes `007`/`008` (die gehören zum Decoupled-Stack).
+- `GET /product-badges/new?idProductAbstract=4` -> `200`, `data` as an object.
+- `GET /product-badges?idProductAbstract=9999` (no badges) -> `200` with `"data":[]`.
+- `GET /product-badges` without parameters -> `400`, code `4401`, `Query parameter "idProductAbstract" is missing or invalid.`
+- The resource is reachable anonymously (`addGet('get', false)`).
+- The Codeception Cest (`seeResponseMatchesOpenApiSchema`) needs `rest-api:generate:documentation` beforehand, otherwise `No valid path is found in the schema` (see template `codeception-test`).
+- **Rollback/removal:** if the resource is removed again, afterwards run `docker/sdk cli console rest-api:generate:documentation` again and rebuild `rest-api:build-request-validation-cache`. The generated `src/Generated/Glue/Specification/spryker_rest_api.schema.yml` is excluded via `.gitignore` (not visible in `git status`) and otherwise still contains `product-badges`; check via `grep -ci badge …` = 0 `[live verified (202610.0)]`.
+- `cache:empty-all` deletes the Glue controller cache; afterwards `docker/sdk cli vendor/bin/glue glue-api:controller:cache:warm-up` (without argument, see reference 12) for the decoupled stacks; the classic stack does not need it.
+The classic stack (`glue.*`) does not read a controller cache (`getControllerConfigurationCacheCollectorPlugins()` only knows Storefront and Backend); a controller cache warm-up is not needed here and `router:debug` does not exist for this stack (`router:debug` only accepts `storefront`/`backend`). An unknown route returns `{"errors":[{"status":404,"detail":"Not Found"}]}` live, not the codes `007`/`008` (those belong to the decoupled stack).
 
-## Verwendete Quelle (Vorbild)
-- `vendor/spryker/urls-rest-api/src/Spryker/Glue/UrlsRestApi/` (Route-Plugin, Controller, ResponseBuilder, öffentliche GET-Ressource mit Query-Parameter)
-- `vendor/spryker/stores-rest-api/src/Spryker/Glue/StoresRestApi/` (Factory, DependencyProvider, Mapper; dort mit Bridge als Core-Muster, im Template bewusst ohne Bridge)
-- Registrierung: `src/Pyz/Glue/GlueApplication/GlueApplicationDependencyProvider.php`
+## Source used (model)
+- `vendor/spryker/urls-rest-api/src/Spryker/Glue/UrlsRestApi/` (route plugin, controller, ResponseBuilder, public GET resource with query parameter)
+- `vendor/spryker/stores-rest-api/src/Spryker/Glue/StoresRestApi/` (Factory, DependencyProvider, Mapper; there with a bridge as a core pattern, in the template deliberately without a bridge)
+- Registration: `src/Pyz/Glue/GlueApplication/GlueApplicationDependencyProvider.php`
 
-## Verifikationsstatus
-Durchgespielt im Shop 202610.0 (Registrierung in `GlueApplicationDependencyProvider` wie beschrieben, curl gegen `glue.eu.spryker.local`, `code:sniff:style` Exit 0, PHPStan Level 6 ohne Befund, Cest `ProductBadgesRestApiCest` grün). Die Antwortform (`data[]` mit `type=product-badges`, `attributes`, `links.self`) ist damit belegt. `[live verifiziert (202610.0)]`
+## Verification status
+Walked through in shop 202610.0 (registration in `GlueApplicationDependencyProvider` as described, curl against `glue.eu.spryker.local`, `code:sniff:style` exit 0, PHPStan level 6 without findings, Cest `ProductBadgesRestApiCest` green). The response form (`data[]` with `type=product-badges`, `attributes`, `links.self`) is thereby proven. `[live verified (202610.0)]`
